@@ -12,7 +12,9 @@ Define el riesgo en dólares, no el tamaño de la posición. El sistema calcula 
 
 ### 🔗 Demo en vivo — **[int.zylestt.com](https://int.zylestt.com)**
 
-Instancia funcionando ahora mismo, conectada a cuentas demo de ambos brokers (Binance testnet y cTrader demo). Con el usuario **`demo`** y la contraseña **`1234`** se puede recorrer el dashboard, el monitor de posiciones y los distintos análisis construidos a partir del historial registrado en la base de datos.
+> **Usuario:** `demo`  ·  **Contraseña:** `1234`
+
+Instancia funcionando ahora mismo, conectada a cuentas demo de ambos brokers (Binance testnet y cTrader demo). Se puede recorrer el dashboard, el monitor de posiciones y los distintos análisis construidos a partir del historial registrado en la base de datos.
 
 <!-- CAPTURA 1 — Dashboard principal (index.html) con el Panel de Control mostrando 2-3 posiciones activas.
      Guardar en: docs/img/dashboard.png -->
