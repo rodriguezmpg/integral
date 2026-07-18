@@ -209,6 +209,7 @@ Las marcas de tiempo, los horarios de mercado, la programación de los funding f
 | Cantidad mínima | Valida contra el mínimo del broker e informa el riesgo mínimo viable del instrumento. |
 | Símbolo con posición activa | No se puede eliminar de la interfaz mientras opera. |
 | Sin bloqueo del event loop | Toda llamada HTTP síncrona dentro de una corrutina va a un thread aparte. |
+| Log en memoria | Ring buffer de 1000 líneas etiquetadas por nivel (INFO/WARNING/ERROR) y en UTC, con filtrado del ruido de requests; visible en `/log`, nada se escribe a disco. |
 
 ### Seguridad de la aplicación
 
