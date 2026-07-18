@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+</head>
+<body>
+
+    <div class="clock-bar">
+        <div class="clock-item"><span class="clock-label">NY</span><span class="clock-time" id="clock-ny">--:--</span></div>
+        <span class="clock-sep">·</span>
+        <div class="clock-item"><span class="clock-label">LN</span><span class="clock-time" id="clock-ln">--:--</span></div>
+        <span class="clock-sep">·</span>
+        <div class="clock-item"><span class="clock-label">UTC</span><span class="clock-time" id="clock-utc">--:--</span></div>
+    </div>
+    <script>
+        function updateClocks() {
+            const now = new Date();
+            const fmt = tz => now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+            document.getElementById('clock-ny').textContent  = fmt('America/New_York');
+            document.getElementById('clock-ln').textContent  = fmt('Europe/London');
+            document.getElementById('clock-utc').textContent = fmt('UTC');
+        }
+        updateClocks();
+        setInterval(updateClocks, 1000);
+    </script>
+
+
+    <div id="warning-banner" class="warning-banner" style="display:none">
+        <span class="warning-banner-text" id="warning-banner-text"></span>
+        <button type="button" class="btn-modal-close" onclick="cerrarWarning()">✕</button>
+    </div>
+
+    <div class="sticky-bar">
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <input type="text" id="search-simbolo" class="search-input" placeholder="Search symbol…" autocomplete="off">
+            </div>
+            <div class="toolbar-group">
+                <button type="button" onclick="window.open('/analytics', '_blank')">Overview</button>
+                <button type="button" onclick="window.open('/log', '_blank')">Log</button>
+                <button type="button" onclick="window.open('/cashflow', '_blank')">Cashflow</button>
+                <button type="button" onclick="window.location='/logout'">Logout</button>
+                <span id="ip"></span>
+                <span id="autorizacion"></span>
+                <span id="demo"></span>
+            </div>
+        </div>
+    </div>
+    <script>
+        fetch('/getip')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('ip').textContent = data.ip;
+                const autEl = document.getElementById('autorizacion');
+                autEl.textContent = data.ip_check ? 'Enabled' : 'Disabled';
+                autEl.style.color = data.ip_check ? 'black' : 'red';
+                const demoEl = document.getElementById('demo');
+                demoEl.textContent = data.testnet ? ' - Demo' : '';
+                demoEl.style.color = autEl.style.color;
+            });
+
+        let _preSearchState = null;  // estado abierto/cerrado de crypto/forex/cfd antes de buscar (para restaurar al limpiar)
+
+        document.getElementById('search-simbolo').addEventListener('input', function () {
+            const q = this.value.toLowerCase().trim().replace('usdt', '');
+            const SEARCH_SECTIONS = ['crypto', 'forex', 'cfd'];
+
+            // Filtrado de filas (comportamiento original, sin cambios)
+            document.querySelectorAll('#tbody-crypto tr, #tbody-forex tr, #tbody-cfd tr').forEach(row => {
+                const ticker = (row.dataset.ticker || '').replace('usdt', '');
+                row.style.display = (!q || ticker.includes(q)) ? '' : 'none';
+            });
+
+            // Abre/cierra una sección igual que toggleSection, pero SIN disparar el acordeón
+            const setSection = (id, open) => {
+                document.getElementById(`${id}-body`).style.display   = open ? '' : 'none';
+                document.getElementById(`${id}-toggle`).textContent   = open ? '▼' : '▶';
+                document.getElementById(`section-${id}`).classList.toggle('collapsed', !open);
+            };
+
+            if (q) {
+                // Al iniciar una búsqueda guardamos una sola vez el estado actual para restaurarlo después
+                if (_preSearchState === null) {
+                    _preSearchState = {};
+                    SEARCH_SECTIONS.forEach(id => {
+                        _preSearchState[id] = document.getElementById(`${id}-body`).style.display !== 'none';
+                    });
+                }
+                // Abrimos las secciones con coincidencias y cerramos las que no tienen
+                SEARCH_SECTIONS.forEach(id => {
+                    const hasMatch = Array.from(document.querySelectorAll(`#tbody-${id} tr`))
+                                          .some(r => r.style.display !== 'none');
+                    setSection(id, hasMatch);
+                });
+            } else if (_preSearchState !== null) {
+                // Búsqueda limpiada: restauramos el estado previo tal cual estaba
+                SEARCH_SECTIONS.forEach(id => setSection(id, _preSearchState[id]));
+                _preSearchState = null;
+            }
+        });
+    </script>
+
+
+    <!-- ── Active Positions ───────────────────────────────────────────────── -->
+    <div class="table-section" id="section-active">
+        <div class="table-header table-header-active" onclick="toggleSection('active')">
+            <span id="active-title">Active Positions</span>
+            <span class="toggle-icon" id="active-toggle">▼</span>
+        </div>
+        <div id="active-body">
+            <table class="tablaform">
+                <thead><tr>
+                    <td class="col-fit">Ticker</td>
+                    <td class="col-fit col-center">Status</td>
+                    <td>Type</td><td>Entry Price</td><td>Current Price</td>
+                    <td>%</td><td>P&amp;L</td><td>BE</td><td>Risk</td>
+                    <td>Realized P&amp;L</td><td>Stage</td><td class="col-fit col-center">Market</td><td>Start Date</td>
+                    <td class="col-fit col-center">Cancel</td>
+                </tr></thead>
+                <tbody id="tbody-activos">
+                    <tr class="empty-row-holder"><td colspan="14" class="empty-row">No active positions</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <!-- ── Crypto · Binance Futures ───────────────────────────────────────── -->
+    <div class="table-section" id="section-crypto">
+        <div class="table-header" onclick="toggleSection('crypto')">
+            <div style="display:flex;align-items:center;gap:10px">
+                <span id="crypto-title">Crypto · Binance Futures</span>
+                <button type="button" onclick="event.stopPropagation(); abrirModal('crypto')"
+                        style="font-size:12px;padding:2px 9px">+ Add</button>
+            </div>
+            <span class="toggle-icon" id="crypto-toggle">▼</span>
+        </div>
+        <div id="crypto-body">
+            <table class="tablaform">
+                <thead><tr>
+                    <td class="col-fit">Ticker</td>
+                    <td class="col-fit col-center">Status</td>
+                    <td class="col-fit col-center">Start</td>
+                    <td>Type</td><td>Entry Price</td><td>Current Price</td>
+                    <td>%</td><td>P&amp;L</td><td>BE</td><td>Risk</td>
+                    <td>Realized P&amp;L</td><td>Stage</td><td class="col-fit col-center">Market</td><td>Start Date</td>
+                    <td class="col-fit col-center">Cancel</td>
+                    <td class="col-fit col-center">Delete</td>
+                </tr></thead>
+                <tbody id="tbody-crypto"></tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <!-- ── Forex ──────────────────────────────────────────────────────────── -->
+    <div class="table-section" id="section-forex">
+        <div class="table-header" onclick="toggleSection('forex')">
+            <div style="display:flex;align-items:center;gap:10px">
+                <span id="forex-title">Forex</span>
+                <button type="button" onclick="event.stopPropagation(); abrirModal('forex')"
+                        style="font-size:12px;padding:2px 9px">+ Add</button>
+            </div>
+            <span class="toggle-icon" id="forex-toggle">▼</span>
+        </div>
+        <div id="forex-body">
+            <table class="tablaform">
+                <thead><tr>
+                    <td class="col-fit">Ticker</td>
+                    <td class="col-fit col-center">Status</td>
+                    <td class="col-fit col-center">Start</td>
+                    <td>Type</td><td>Entry Price</td><td>Current Price</td>
+                    <td>%</td><td>P&amp;L</td><td>BE</td><td>Risk</td>
+                    <td>Realized P&amp;L</td><td>Stage</td><td class="col-fit col-center">Market</td><td>Start Date</td>
+                    <td class="col-fit col-center">Cancel</td>
+                    <td class="col-fit col-center">Delete</td>
+                </tr></thead>
+                <tbody id="tbody-forex"></tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <!-- ── CFD ────────────────────────────────────────────────────────────── -->
+    <div class="table-section" id="section-cfd">
+        <div class="table-header" onclick="toggleSection('cfd')">
+            <div style="display:flex;align-items:center;gap:10px">
+                <span id="cfd-title">CFD</span>
+                <button type="button" onclick="event.stopPropagation(); abrirModal('cfd')"
+                        style="font-size:12px;padding:2px 9px">+ Add</button>
+            </div>
+            <span class="toggle-icon" id="cfd-toggle">▼</span>
+        </div>
+        <div id="cfd-body">
+            <table class="tablaform">
+                <thead><tr>
+                    <td class="col-fit">Ticker</td>
+                    <td class="col-fit col-center">Status</td>
+                    <td class="col-fit col-center">Start</td>
+                    <td>Type</td><td>Entry Price</td><td>Current Price</td>
+                    <td>%</td><td>P&amp;L</td><td>BE</td><td>Risk</td>
+                    <td>Realized P&amp;L</td><td>Stage</td><td class="col-fit col-center">Market</td><td>Start Date</td>
+                    <td class="col-fit col-center">Cancel</td>
+                    <td class="col-fit col-center">Delete</td>
+                </tr></thead>
+                <tbody id="tbody-cfd"></tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <script>
+        // ================================================================
+        // TABLE LOGIC
+        // ================================================================
+
+        const cryptoList = JSON.parse('{{ crypto_list | tojson | safe }}');
+        const forexList  = JSON.parse('{{ forex_list  | tojson | safe }}');
+        const cfdList    = JSON.parse('{{ cfd_list    | tojson | safe }}');
+
+        // Genera las filas de una tabla de símbolos (incluye el botón ✕ de Delete).
+        function generarFilasTabla(lista) {
+            return lista.map((simbolo, index) => {
+                const nombre = simbolo.endsWith('usdt')
+                    ? simbolo.replace('usdt', '').toUpperCase()
+                    : simbolo.toUpperCase();
+                return `
+                <tr data-ticker="${simbolo}" data-original-index="${index}" data-active="0">
+                    <td class="col-fit" style="cursor:pointer" onclick="window.open('/main?ticker=${simbolo}','_blank')">${nombre}</td>
+                    <td class="col-fit col-center"><span id="${simbolo}_ps_socket_active"></span></td>
+                    <td class="col-fit col-center"><button type="button" onclick="abrirModalStart('${simbolo}')">Start</button></td>
+                    <td><span id="${simbolo}_fd_type_pos"></span></td>
+                    <td><span id="${simbolo}_fd_r0"></span></td>
+                    <td><span id="${simbolo}_current_price"></span></td>
+                    <td><span id="${simbolo}_rt_position_pct"></span></td>
+                    <td><span id="${simbolo}_rt_unrealized_pnl"></span></td>
+                    <td><span id="${simbolo}_rt_breakeven_stage"></span></td>
+                    <td><span id="${simbolo}_ps_risk_usdt"></span></td>
+                    <td><span id="${simbolo}_rt_balance"></span></td>
+                    <td><span id="${simbolo}_rt_ALGO_pos"></span></td>
+                    <td class="col-fit col-center"><span id="${simbolo}_market_open"></span></td>
+                    <td><span id="${simbolo}_fd_open_time"></span></td>
+                    <td class="col-fit col-center">
+                        <button type="button" onclick="stopSocket('${simbolo}')">Cancel</button>
+                    </td>
+                    <td class="col-fit col-center">
+                        <button type="button" class="btn-x" id="${simbolo}_btn_delete"
+                                onclick="eliminarSimbolo('${simbolo}')" title="Remove from list">✕</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        document.getElementById('tbody-crypto').innerHTML = generarFilasTabla(cryptoList.map(s => s.toLowerCase()));
+        document.getElementById('tbody-forex').innerHTML  = generarFilasTabla(forexList.map(s => s.toLowerCase()));
+        document.getElementById('tbody-cfd').innerHTML    = generarFilasTabla(cfdList.map(s => s.toLowerCase()));
+
+        // Symbol counts in section headers
+        document.getElementById('crypto-title').textContent = `Crypto · Binance Futures (${cryptoList.length})`;
+        document.getElementById('forex-title').textContent  = `Forex (${forexList.length})`;
+        document.getElementById('cfd-title').textContent    = `CFD (${cfdList.length})`;
+
+        // Forex and CFD collapsed by default; crypto starts open
+        toggleSection('forex');
+        toggleSection('cfd');
+
+        let _primeraActualizacion = true;
+
+
+        const CAMPOS_COLOR = ['rt_position_pct', 'rt_unrealized_pnl', 'rt_balance'];
+
+        function colorClass(val) {
+            const num = parseFloat(String(val ?? '').replace('%', ''));
+            if (!isNaN(num) && num > 0) return 'val-positive';
+            if (!isNaN(num) && num < 0) return 'val-negative';
+            return '';
+        }
+
+        // Ícono de la columna Market: bolita verde si el mercado está abierto, pausa azul si está cerrado.
+        function marketIcon(open) {
+            return open ? '<span class="status-dot"></span>' : '<span class="status-pause"></span>';
+        }
+
+        // Builds a row for the Active Positions table (no span IDs).
+        // La tabla se reconcilia por data-ticker (ver reconciliarActivos), no se
+        // reconstruye entera cada poll: así el botón Cancel conserva su nodo.
+        function construirFilaActiva(ticker, campos) {
+            const nombre = ticker.endsWith('usdt')
+                ? ticker.replace('usdt', '').toUpperCase()
+                : ticker.toUpperCase();
+            const v  = key => { const val = campos[key]; return (val === null || val === undefined) ? '' : val; };
+            // BE muestra el stage tal cual: -1 = SL original, 0 = breakeven, 1+ = trailing.
+            const be = v('rt_breakeven_stage');
+            const pct = v('rt_position_pct');   // distancia % desde r0; se le agrega el signo "%" al mostrar
+            return `
+            <tr data-ticker="${ticker}">
+                <td class="col-fit" style="cursor:pointer" onclick="window.open('/main?ticker=${ticker}','_blank')">${nombre}</td>
+                <td class="col-fit col-center"><span class="status-dot"></span></td>
+                <td>${v('fd_type_pos')}</td>
+                <td>${v('fd_r0')}</td>
+                <td>${campos.current_price || ''}</td>
+                <td class="${colorClass(campos.rt_position_pct)}">${pct === '' ? '' : pct + '%'}</td>
+                <td class="${colorClass(campos.rt_unrealized_pnl)}">${v('rt_unrealized_pnl')}</td>
+                <td>${be}</td>
+                <td>${v('ps_risk_usdt')}</td>
+                <td class="${colorClass(campos.rt_balance)}">${v('rt_balance')}</td>
+                <td>${v('rt_ALGO_pos')}</td>
+                <td class="col-fit col-center">${marketIcon(campos.market_open)}</td>
+                <td>${v('fd_open_time')}</td>
+                <td class="col-fit col-center">
+                    <button type="button" onclick="stopSocket('${ticker}')">Cancel</button>
+                </td>
+            </tr>`;
+        }
+
+        // Señal de puntero: mientras haya un botón presionado no reordenamos ni
+        // reconstruimos filas, para que el mouseup caiga sobre el mismo nodo del
+        // mousedown y el navegador no descarte el click durante el refresco de 1s.
+        let _pointerDown = false;
+        document.addEventListener('pointerdown',   () => { _pointerDown = true;  }, true);
+        document.addEventListener('pointerup',     () => { _pointerDown = false; }, true);
+        document.addEventListener('pointercancel', () => { _pointerDown = false; }, true);
+
+        // Firma del conjunto de activos: sortRows solo se re-ejecuta cuando cambia.
+        let _prevActiveSig = null;
+
+        const _tbodyActivos = document.getElementById('tbody-activos');
+
+        // Actualiza en su lugar las celdas dinámicas de una fila activa, sin tocar la
+        // última celda (botón Cancel): su nodo sobrevive al refresco y el click no se
+        // pierde. Solo reemplaza las celdas cuyo contenido realmente cambió.
+        function actualizarCeldasActiva(row, ticker, campos) {
+            const tmp = document.createElement('tbody');
+            tmp.innerHTML = construirFilaActiva(ticker, campos).trim();
+            const nuevas = Array.from(tmp.querySelector('tr').cells);
+            // Recorremos todas las celdas menos la última (Cancel), que no se toca.
+            for (let i = 0; i < row.cells.length - 1 && i < nuevas.length - 1; i++) {
+                if (row.cells[i].outerHTML !== nuevas[i].outerHTML) {
+                    row.replaceChild(nuevas[i], row.cells[i]);
+                }
+            }
+        }
+
+        // Reconcilia la tabla de posiciones activas por data-ticker: crea las filas
+        // nuevas, actualiza las existentes en su lugar y borra las que se cerraron,
+        // sin reconstruir todo el innerHTML (que destruía el botón Cancel cada poll).
+        function reconciliarActivos(orden, datos) {
+            if (orden.length === 0) {
+                if (!_tbodyActivos.querySelector('tr.empty-row-holder')) {
+                    _tbodyActivos.innerHTML =
+                        '<tr class="empty-row-holder"><td colspan="14" class="empty-row">No active positions</td></tr>';
+                }
+                return;
+            }
+            const vacio = _tbodyActivos.querySelector('tr.empty-row-holder');
+            if (vacio) vacio.remove();
+
+            const existentes = {};
+            _tbodyActivos.querySelectorAll('tr[data-ticker]').forEach(tr => { existentes[tr.dataset.ticker] = tr; });
+
+            // Borrar filas que ya no están activas.
+            for (const t in existentes) {
+                if (orden.indexOf(t) === -1) { existentes[t].remove(); delete existentes[t]; }
+            }
+
+            // Crear/actualizar en el orden deseado.
+            orden.forEach(ticker => {
+                const row = existentes[ticker];
+                if (row) {
+                    actualizarCeldasActiva(row, ticker, datos[ticker]);
+                } else {
+                    const tmp = document.createElement('tbody');
+                    tmp.innerHTML = construirFilaActiva(ticker, datos[ticker]).trim();
+                    _tbodyActivos.appendChild(tmp.querySelector('tr'));
+                }
+            });
+
+            // Reordenar solo si el orden actual difiere del deseado (mover filas puede
+            // correr el botón bajo el cursor; lo evitamos salvo cuando de verdad cambió).
+            const actual = Array.from(_tbodyActivos.querySelectorAll('tr[data-ticker]')).map(tr => tr.dataset.ticker);
+            if (actual.join(',') !== orden.join(',')) {
+                orden.forEach(ticker => {
+                    const tr = _tbodyActivos.querySelector(`tr[data-ticker="${ticker}"]`);
+                    if (tr) _tbodyActivos.appendChild(tr);
+                });
+            }
+        }
+
+        function actualizarPControl() {
+            fetch('/datos_PControl')
+                .then(r => r.json())
+                .then(data => {
+                    const activos = [];
+
+                    for (const [ticker, campos] of Object.entries(data)) {
+                        const raw    = campos.ps_socket_active;
+                        const activo = (raw === true || raw === 'true' || raw === 1 || raw === '1');
+
+                        // Acotamos la búsqueda a las tablas de símbolos (las de Active
+                        // Positions también tienen data-ticker y no queremos tocarlas acá).
+                        const fila = document.querySelector(
+                            `#tbody-crypto tr[data-ticker="${ticker}"], #tbody-forex tr[data-ticker="${ticker}"], #tbody-cfd tr[data-ticker="${ticker}"]`);
+                        if (fila) fila.dataset.active = activo ? '1' : '0';
+
+                        const btnDel = document.getElementById(`${ticker}_btn_delete`);
+                        if (btnDel) {
+                            btnDel.disabled = activo;
+                            btnDel.title    = activo ? 'Stop the symbol before removing' : 'Remove from list';
+                        }
+
+                        for (const [campo, valor] of Object.entries(campos)) {
+                            const el = document.getElementById(`${ticker}_${campo}`);
+                            if (!el) continue;
+                            if (campo === 'ps_socket_active') {
+                                el.innerHTML = activo ? '<span class="status-dot"></span>' : '';
+                                continue;
+                            }
+                            if (campo === 'market_open') {
+                                el.innerHTML = activo ? marketIcon(valor) : '';
+                                continue;
+                            }
+                            if (campo === 'rt_position_pct') {   // columna % -> se muestra con el signo "%"
+                                const txt = (valor === 0 || valor === '0')
+                                    ? (activo ? '0' : '')
+                                    : (valor !== null && valor !== undefined ? String(valor) : '');
+                                el.textContent = txt === '' ? '' : `${txt}%`;
+                                const n = parseFloat(String(valor).replace('%', ''));
+                                el.className = !isNaN(n) && n > 0 ? 'val-positive'
+                                             : !isNaN(n) && n < 0 ? 'val-negative' : '';
+                                continue;
+                            }
+                            el.textContent = (valor === 0 || valor === '0')
+                                ? (activo ? '0' : '')
+                                : (valor !== null && valor !== undefined ? valor : '');
+                            if (CAMPOS_COLOR.includes(campo)) {
+                                const num = parseFloat(String(valor).replace('%', ''));
+                                el.className = !isNaN(num) && num > 0 ? 'val-positive'
+                                             : !isNaN(num) && num < 0 ? 'val-negative' : '';
+                            }
+                        }
+
+                        if (activo) activos.push(ticker);
+                    }
+
+                    // Reconciliamos la tabla de activos sin reconstruir todo el innerHTML
+                    // (eso destruía el botón Cancel cada segundo y se tragaba los clicks).
+                    // Con un puntero presionado saltamos la reestructuración este tick.
+                    if (!_pointerDown) reconciliarActivos(activos, data);
+
+                    document.getElementById('active-title').textContent = activos.length > 0
+                        ? `Active Positions (${activos.length})` : 'Active Positions';
+
+                    if (_primeraActualizacion) {
+                        _primeraActualizacion = false;
+                        if (activos.length > 0) {
+                            const cb = document.getElementById('crypto-body');
+                            if (cb.style.display !== 'none') toggleSection('crypto');
+                        }
+                        // Tras un add/delete la página se recarga: reabrimos la sección en la que estabas
+                        const _reopen = sessionStorage.getItem('openSectionAfterReload');
+                        sessionStorage.removeItem('openSectionAfterReload');
+                        if (_reopen && ['crypto', 'forex', 'cfd'].includes(_reopen)) {
+                            const rb = document.getElementById(`${_reopen}-body`);
+                            if (rb && rb.style.display === 'none') toggleSection(_reopen);
+                        }
+                    }
+
+                    // Reordenamos las tablas de símbolos solo si cambió el conjunto de
+                    // activos: mover filas en cada tick corría los botones bajo el cursor.
+                    const sig = activos.slice().sort().join(',');
+                    if (sig !== _prevActiveSig && !_pointerDown) {
+                        _prevActiveSig = sig;
+                        sortRows('tbody-crypto');
+                        sortRows('tbody-forex');
+                        sortRows('tbody-cfd');
+                    }
+                });
+        }
+
+        function mostrarWarning(msg) {
+            document.getElementById('warning-banner-text').textContent = msg;
+            document.getElementById('warning-banner').style.display = 'flex';
+        }
+        function cerrarWarning() {
+            document.getElementById('warning-banner').style.display = 'none';
+        }
+
+        function sortRows(tbodyId) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                const aA = a.dataset.active === '1', bA = b.dataset.active === '1';
+                if (aA !== bA) return aA ? -1 : 1;
+                return parseInt(a.dataset.originalIndex) - parseInt(b.dataset.originalIndex);
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        }
+
+        const ACCORDION_SECTIONS = ['crypto', 'forex', 'cfd'];
+
+        function toggleSection(id) {
+            const body    = document.getElementById(`${id}-body`);
+            const icon    = document.getElementById(`${id}-toggle`);
+            const section = document.getElementById(`section-${id}`);
+            const closing = body.style.display !== 'none';
+            body.style.display = closing ? 'none' : '';
+            icon.textContent   = closing ? '▶' : '▼';
+            section.classList.toggle('collapsed', closing);
+
+            if (!closing && ACCORDION_SECTIONS.includes(id)) {
+                ACCORDION_SECTIONS.forEach(other => {
+                    if (other !== id) {
+                        const otherBody = document.getElementById(`${other}-body`);
+                        if (otherBody && otherBody.style.display !== 'none') toggleSection(other);
+                    }
+                });
+            }
+        }
+
+        function eliminarSimbolo(ticker) {
+            const nombre = ticker.replace('usdt', '').toUpperCase();
+            if (!confirm(`Remove ${nombre} from the symbol list?`)) return;
+            fetch(`/api/symbols/remove?ticker=${ticker}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok) {
+                        // Guardamos la sección del símbolo eliminado para reabrirla tras la recarga
+                        const row = document.querySelector(`#tbody-crypto tr[data-ticker="${ticker}"], #tbody-forex tr[data-ticker="${ticker}"], #tbody-cfd tr[data-ticker="${ticker}"]`);
+                        if (row) sessionStorage.setItem('openSectionAfterReload', row.closest('tbody').id.replace('tbody-', ''));
+                        window.location.reload();
+                    } else alert(d.error || 'Error removing symbol');
+                })
+                .catch(() => alert('Connection error'));
+        }
+
+        setInterval(actualizarPControl, 1000);
+        actualizarPControl();
+
+        function pollWarnings() {
+            fetch('/api/warnings')
+                .then(r => r.json())
+                .then(data => {
+                    const msgs = Object.values(data);
+                    if (msgs.length > 0) mostrarWarning(msgs[0]);
+                });
+        }
+        setInterval(pollWarnings, 1000);
+    </script>
+
+
+    <!-- ================================================================
+         START POSITION MODAL
+         ================================================================ -->
+    <div id="modal-start-overlay" class="modal-overlay" style="display:none"
+         onclick="if(event.target===this) cerrarModalStart()">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span id="start-modal-title">Start Position</span>
+                <button type="button" class="btn-modal-close" onclick="cerrarModalStart()">✕</button>
+            </div>
+            <label class="modal-field-label">Risk (USDT)
+                <input type="text" id="start-risk" class="search-input" style="width:100%" placeholder="0.00" autocomplete="off">
+            </label>
+            <label class="modal-field-label">Target Price
+                <input type="text" id="start-target" class="search-input" style="width:100%" placeholder="0.00" autocomplete="off">
+            </label>
+            <div id="start-spread-info" style="display:none;font-size:0.82rem;margin:-4px 0 8px 0"></div>
+            <label class="modal-field-label">Comment (optional)
+                <textarea id="start-comment" class="search-input" style="width:100%;resize:vertical;min-height:52px" placeholder="Nota de la posición..." autocomplete="off"></textarea>
+            </label>
+            <div class="modal-footer">
+                <button type="button" id="btn-start-confirm" class="btn-start-green" onclick="confirmarStart()" disabled>Start</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let tickerParaStart = null;
+        let spreadActual = null, precioRef = null, digitsRef = 5;   // estado del spread del símbolo abierto en el modal
+
+        // Recalcula el % del spread contra 1R con el target tipeado, SIN volver a pedir nada al server.
+        // dist_1r = |target - precioRef| / 2  (deriva de perc1r en logic_c). Verde <5%, amarillo 5-12%, rojo >12%.
+        function actualizarSpreadPct() {
+            const el = document.getElementById('start-spread-info');
+            if (spreadActual == null || precioRef == null) { el.style.display = 'none'; return; }
+            let txt = `Spread: ${spreadActual.toFixed(digitsRef)}`;
+            let color = '#888';
+            const target = Number(document.getElementById('start-target').value.replace(',', '.').trim());
+            if (target > 0) {
+                const dist1r = Math.abs(target - precioRef) / 2;
+                if (dist1r > 0) {
+                    const pct = spreadActual / dist1r * 100;
+                    txt += `  ·  ${pct.toFixed(1)}% de 1R`;
+                    color = pct < 5 ? '#2e9e5b' : (pct <= 12 ? '#c79100' : '#d13438');
+                }
+            }
+            el.textContent = txt;
+            el.style.color = color;
+            el.style.display = 'block';
+        }
+
+        function validarStart() {
+            // Number() da NaN ante letras/caracteres inválidos ("XZC" -> NaN) y 0 ante
+            // vacío; con "> 0" ambos casos dejan el botón deshabilitado. El servidor
+            // igual revalida (defensa en profundidad).
+            const risk   = Number(document.getElementById('start-risk').value.replace(',', '.').trim());
+            const target = Number(document.getElementById('start-target').value.replace(',', '.').trim());
+            document.getElementById('btn-start-confirm').disabled = !(risk > 0 && target > 0);
+        }
+
+        function abrirModalStart(ticker) {
+            tickerParaStart = ticker;
+            document.getElementById('start-modal-title').textContent =
+                ticker.endsWith('usdt') ? ticker.replace('usdt', '').toUpperCase() : ticker.toUpperCase();
+            document.getElementById('start-risk').value   = '';
+            document.getElementById('start-target').value = '';
+            document.getElementById('start-comment').value = '';
+            document.getElementById('btn-start-confirm').disabled = true;
+            document.getElementById('modal-start-overlay').style.display = 'flex';
+            // Spread del símbolo (solo cTrader/forex-CFD; crypto responde n/a y la línea queda oculta).
+            // Foto única al abrir: el % se recalcula solo contra el target mientras tipeás.
+            spreadActual = null; precioRef = null;
+            document.getElementById('start-spread-info').style.display = 'none';
+            fetch(`/api/spread?ticker=${ticker}`)
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'ok') {
+                        spreadActual = d.spread;
+                        precioRef    = d.price;
+                        digitsRef    = d.digits || 5;
+                        actualizarSpreadPct();
+                    }
+                })
+                .catch(() => {});
+            // Risk por defecto = gl.risk_max (riesgo máximo sugerido, recalculado en vivo por aggregate()).
+            // Se pide fresco al abrir; el usuario puede sobreescribirlo.
+            fetch('/datos_analytics')
+                .then(r => r.json())
+                .then(data => {
+                    const rm = data.gl_risk_max;
+                    if (rm != null && !isNaN(rm)) {
+                        // Solo seteamos el valor: no usamos .select() porque enfoca el campo
+                        // y le robaría el foco a Target Price (el fetch resuelve después).
+                        document.getElementById('start-risk').value = Number(rm).toFixed(2);
+                        validarStart();       // reevalúa el botón con el risk ya cargado
+                    }
+                })
+                .catch(() => {});
+            setTimeout(() => document.getElementById('start-target').focus(), 50);
+        }
+        function cerrarModalStart() {
+            document.getElementById('modal-start-overlay').style.display = 'none';
+            tickerParaStart = null;
+        }
+        // Cierre manual por POST (un GET sería vulnerable a CSRF). No navega:
+        // el polling de las tablas refleja el cierre solo.
+        function stopSocket(ticker) {
+            fetch(`/stopsocket?ticker=${ticker}`, { method: 'POST' })
+                .then(r => { if (!r.ok) console.error(`[Stop] Error stopping ${ticker}`); });
+        }
+        function confirmarStart() {
+            if (!tickerParaStart) return;
+            // Respetamos la validación: Enter dispara esto salteando el botón disabled.
+            if (document.getElementById('btn-start-confirm').disabled) return;
+            const risk    = document.getElementById('start-risk').value.replace(',', '.');
+            const target  = document.getElementById('start-target').value.replace(',', '.');
+            const comment = document.getElementById('start-comment').value;   // opcional; puede ir vacío
+            fetch(`/mainstart?ticker=${tickerParaStart}&risk_usdt=${risk}&target_price=${target}&comment=${encodeURIComponent(comment)}`, { method: 'POST' })
+                .then(r => { if (!r.ok) console.error(`[Start] Error starting ${tickerParaStart}`); });
+            cerrarModalStart();
+        }
+        ['start-risk', 'start-target'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input',   function() { this.value = this.value.replace(',', '.'); validarStart(); actualizarSpreadPct(); });
+            el.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmarStart(); });
+        });
+    </script>
+
+
+    <!-- ================================================================
+         ADD SYMBOL MODAL — genérico, compartido por Crypto / Forex / CFD.
+         El mismo modal sirve para los tres tipos; la configuración
+         (título, endpoint de lista, endpoint de agregar) cambia según el tipo.
+         ================================================================ -->
+    <div id="modal-add-overlay" class="modal-overlay" style="display:none"
+         onclick="if(event.target===this) cerrarModal()">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span id="modal-add-title">Add Symbol</span>
+                <button type="button" class="btn-modal-close" onclick="cerrarModal()">✕</button>
+            </div>
+            <input type="text" id="modal-add-search" class="search-input" style="width:100%"
+                   placeholder="Search…" autocomplete="off">
+            <ul id="modal-add-lista" class="modal-lista">
+                <li class="modal-empty">Loading symbols…</li>
+            </ul>
+            <div id="modal-add-seleccionado" class="modal-seleccionado"></div>
+            <div class="modal-footer">
+                <button type="button" id="btn-modal-add" onclick="agregarSimbolo()" disabled>Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // ADD SYMBOL MODAL LOGIC — un solo modal reutilizable para Crypto, Forex y CFD.
+        // ================================================================
+
+        // Config del modal según el tipo activo
+        const modalConfig = {
+            crypto: { title: 'Add Crypto Symbol',  listUrl: '/api/binance-symbols',  addUrl: '/api/symbols/add' },
+            forex:  { title: 'Add Forex Symbol',    listUrl: '/api/forex-symbols', addUrl: '/api/symbols/add-forex' },
+            cfd:    { title: 'Add CFD Symbol',      listUrl: '/api/cfd-symbols',   addUrl: '/api/symbols/add-cfd' },
+        };
+
+        // Cache de listas por tipo para no volver a pedir al backend
+        const symbolCache   = { crypto: [], forex: [], cfd: [] };
+        let tipoActivo      = null;
+        let simboloElegido  = null;
+
+        function abrirModal(tipo) {
+            tipoActivo     = tipo;
+            simboloElegido = null;
+            const cfg = modalConfig[tipo];
+
+            document.getElementById('modal-add-title').textContent       = cfg.title;
+            document.getElementById('modal-add-search').value            = '';
+            document.getElementById('modal-add-seleccionado').textContent = '';
+            document.getElementById('btn-modal-add').disabled            = true;
+            document.getElementById('modal-add-overlay').style.display   = 'flex';
+
+            if (symbolCache[tipo].length === 0) {
+                document.getElementById('modal-add-lista').innerHTML =
+                    '<li class="modal-empty">Loading symbols…</li>';
+                fetch(cfg.listUrl)
+                    .then(r => r.json())
+                    .then(data => { symbolCache[tipo] = data; renderizarLista(data); })
+                    .catch(() => {
+                        document.getElementById('modal-add-lista').innerHTML =
+                            '<li class="modal-empty">Error loading symbols</li>';
+                    });
+            } else {
+                renderizarLista(symbolCache[tipo]);
+            }
+            setTimeout(() => document.getElementById('modal-add-search').focus(), 50);
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-add-overlay').style.display = 'none';
+            tipoActivo = null; simboloElegido = null;
+        }
+
+        function renderizarLista(lista) {
+            const ul = document.getElementById('modal-add-lista');
+            if (!lista.length) { ul.innerHTML = '<li class="modal-empty">No results</li>'; return; }
+            ul.innerHTML = lista.map(s =>
+                `<li onclick="seleccionarSimbolo('${s}')"
+                     class="${s === simboloElegido ? 'selected' : ''}">${s}</li>`
+            ).join('');
+        }
+
+        document.getElementById('modal-add-search').addEventListener('input', function () {
+            if (!tipoActivo) return;
+            const q = this.value.toUpperCase().trim();
+            const filtrados = q ? symbolCache[tipoActivo].filter(s => s.includes(q)) : symbolCache[tipoActivo];
+            renderizarLista(filtrados);
+        });
+
+        function seleccionarSimbolo(s) {
+            simboloElegido = s;
+            document.getElementById('modal-add-seleccionado').textContent = `Selected: ${s}`;
+            document.getElementById('btn-modal-add').disabled = false;
+            document.querySelectorAll('#modal-add-lista li').forEach(li =>
+                li.classList.toggle('selected', li.textContent === s)
+            );
+        }
+
+        function agregarSimbolo() {
+            if (!simboloElegido || !tipoActivo) return;
+            const url = modalConfig[tipoActivo].addUrl;
+            fetch(url, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ ticker: simboloElegido })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok) { sessionStorage.setItem('openSectionAfterReload', tipoActivo); cerrarModal(); window.location.reload(); }
+                else      { alert(d.error || 'Error adding symbol'); }
+            })
+            .catch(() => alert('Connection error'));
+        }
+
+        // Escape cierra cualquier modal abierto
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { cerrarModal(); cerrarModalStart(); }
+        });
+    </script>
+
+</body>
+</html>

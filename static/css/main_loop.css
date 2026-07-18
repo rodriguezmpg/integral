@@ -1,0 +1,329 @@
+:root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #d1d5db;
+            --accent: #2563eb;
+            --green: #16a34a;
+            --red: #dc2626;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        /* Recuadro de horario de mercado */
+        #market-hours { font-size: 13px; }
+        .mh-status {
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .mh-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--green);
+            box-shadow: 0 0 4px rgba(22, 163, 74, 0.5);
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        .mh-dot-red {
+            background-color: var(--red);
+            box-shadow: 0 0 4px rgba(220, 38, 38, 0.5);
+        }
+        .mh-row {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .mh-row:last-child { border-bottom: none; }
+        .mh-sep { color: var(--muted); }
+        .mh-opens { margin-left: auto; color: var(--muted); font-weight: 600; }
+
+        .movimientos-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+        .mov-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            cursor: pointer;
+            user-select: none;
+        }
+        /* Filas de Founding Fee / Swap: cargadas pero ocultas; el checkbox agrega .show-ff para mostrarlas */
+        #tablaCsv .ff-row { display: none; }
+        #tablaCsv.show-ff .ff-row { display: table-row; }
+
+        /* Columna commission: se oculta en forex/CFD (agregando .hide-commission a la tabla) */
+        #tablaCsv.hide-commission .col-commission { display: none; }
+
+        /* Layout principal: izquierda (Información, 1/3) + derecha (2/3).
+           Las 3 cards de arriba (Información · Contabilidad · Grilla) quedan del mismo ancho (1/3 c/u). */
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: start;
+        }
+
+        .col-left {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .col-left > .card {
+            margin-bottom: 0;
+        }
+
+        .col-right {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .col-right > .card {
+            margin-bottom: 0;
+        }
+
+        .right-top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .btn-gray {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+            width: 100%;
+            margin-top: 12px;
+            text-transform: uppercase;
+        }
+        .btn-gray:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .comment-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .btn-comment {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .btn-comment:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        /* Tablas generales */
+        table.tablafija {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        table.tablafija th,
+        table.tablafija td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            text-align: right;
+        }
+
+        table.tablafija th:first-child,
+        table.tablafija td:first-child,
+        table.tablafija td.td-label {
+            text-align: left;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        table.tablafija thead th {
+            background: #f3f4f6;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        table.tablafija thead th:first-child {
+            text-align: left;
+        }
+
+        /* Tabla CSV de movimientos */
+        .tabla-csv-container {
+            overflow-x: auto;
+        }
+
+        table.tabla-csv {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        table.tabla-csv th,
+        table.tabla-csv td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            text-align: right;
+        }
+
+        table.tabla-csv th:first-child,
+        table.tabla-csv td:first-child {
+            text-align: left;
+        }
+
+        table.tabla-csv thead th {
+            background: #f3f4f6;
+            font-weight: bold;
+        }
+
+        table.tabla-csv tbody tr:hover {
+            background: #eef2ff;
+        }
+
+        table.tabla-csv .green-bg {
+            background: #dcfce7;
+        }
+
+        table.tabla-csv .blue-bg {
+            background: #dbeafe;
+        }
+
+        table.tabla-csv .restart-row td {
+            text-align: center;
+            font-weight: bold;
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Tabla de niveles unificada */
+        #tabla-niveles-container {
+            overflow-x: auto;
+        }
+
+        #tabla-niveles-container table.tablafija thead th {
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        /* Stats inline */
+        .stat-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            gap: 6px;
+            align-items: baseline;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .positive { color: var(--green); }
+        .negative { color: var(--red); }
+
+        .chart-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        #btn-ampliar {
+            width: auto;
+            margin-top: 0;
+            text-decoration: none;
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 11px;
+        }
+
+        #chart-embed {
+            height: 320px;
+            position: relative;
+        }
+
+        @media (max-width: 900px) {
+            .top-grid {
+                grid-template-columns: 1fr;
+            }
+            .right-top {
+                grid-template-columns: 1fr;
+            }
+        }

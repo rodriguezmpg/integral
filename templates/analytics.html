@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+  <title>Analytics</title>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="page-title">ANALYTICS</div>
+
+  <div class="card" id="message-card">
+    <div class="message" id="message">Loading analytics...</div>
+  </div>
+
+  <div id="results" class="hidden">
+
+    <!-- ── Live portfolio por exchange (totales de cada métrica de Globales) ─── -->
+    <div class="section-label">Portfolio · by exchange</div>
+    <div class="top-grid">
+      <div class="card">
+        <div class="card-title">Global</div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="gl-global"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Binance</div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="gl-binance"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">cTrader</div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="gl-ctrader"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Portfolio state (live) ──────────────────────────────────────── -->
+    <div class="top-grid">
+
+      <div class="card">
+        <div class="card-title">Summary</div>
+        <table class="tablafija" id="posTable">
+          <thead><tr><th>Exit Type</th><th>cTrader</th><th>Binance</th><th>Total</th></tr></thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td>TOTAL</td>
+              <td id="footCtrader">0</td>
+              <td id="footBinance">0</td>
+              <td id="footTotal">0</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="stat-line" style="margin-top:12px;">
+          <span class="label">Total valid records</span>
+          <span class="value neutral" id="cantidadTotal">0</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Risk management</div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="risk-mgmt"></tbody>
+        </table>
+      </div>
+
+      <!-- Margin broker-aware (toggle Binance/cTrader): mismo control, filas específicas por broker. -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>Margin</span>
+          <span class="margin-tabs">
+            <button type="button" class="margin-tab active" data-broker="binance">Binance</button>
+            <button type="button" class="margin-tab" data-broker="ctrader">cTrader</button>
+          </span>
+        </div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody id="margin-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+
+    <!-- ── Direccional (long / short) discriminado por exchange ────────── -->
+    <div class="section-label">Direction · by exchange</div>
+    <div class="two-grid">
+
+      <div class="card">
+        <div class="card-title">Long</div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Global</th><th>Binance</th><th>cTrader</th></tr></thead>
+          <tbody id="dir-long"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Short</div>
+        <table class="tablafija">
+          <thead><tr><th>Metric</th><th>Global</th><th>Binance</th><th>cTrader</th></tr></thead>
+          <tbody id="dir-short"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+
+    <!-- ── Trade Quality ───────────────────────────────────────────────── -->
+    <div class="section-label">Trade Quality</div>
+    <div class="top-grid">
+
+      <!-- Win / Loss -->
+      <div class="card">
+        <div class="card-title">Win / Loss</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Win Rate</span>
+            <span class="value positive" id="stat-winrate">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Loss Rate</span>
+            <span class="value negative" id="stat-lossrate">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Wins</span>
+            <span class="value neutral" id="stat-wins">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Losses</span>
+            <span class="value neutral" id="stat-losses">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Largest Win</span>
+            <span class="value positive" id="stat-largest-win">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Largest Loss</span>
+            <span class="value negative" id="stat-largest-loss">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profit Factor -->
+      <div class="card">
+        <div class="card-title">Profit Factor</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Profit Factor</span>
+            <span class="value neutral" id="stat-pf">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Gross Profit</span>
+            <span class="value positive" id="stat-gross-profit">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Gross Loss</span>
+            <span class="value negative" id="stat-gross-loss">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Avg Win</span>
+            <span class="value positive" id="stat-avg-win">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Avg Loss</span>
+            <span class="value negative" id="stat-avg-loss">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Reward / Risk</span>
+            <span class="value neutral" id="stat-rr">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expectancy & R-multiples -->
+      <div class="card">
+        <div class="card-title">Expectancy &amp; R-Multiple</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Expectancy (USDT)</span>
+            <span class="value neutral" id="stat-exp-usdt">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Expectancy (R)</span>
+            <span class="value neutral" id="stat-exp-r">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Avg R-Multiple</span>
+            <span class="value neutral" id="stat-avg-r">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Best R</span>
+            <span class="value positive" id="stat-best-r">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Worst R</span>
+            <span class="value negative" id="stat-worst-r">—</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ── Risk & Patterns ─────────────────────────────────────────────── -->
+    <div class="section-label">Risk &amp; Patterns</div>
+    <div class="top-grid">
+
+      <!-- Performance -->
+      <div class="card">
+        <div class="card-title">Performance</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Peak Cumulative P&amp;L</span>
+            <span class="value positive" id="maxPositive">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Trough Cumulative P&amp;L</span>
+            <span class="value negative" id="maxNegative">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Final Cumulative P&amp;L</span>
+            <span class="value neutral" id="finalAccumulated">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Streaks -->
+      <div class="card">
+        <div class="card-title">Streaks</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Max Win Streak</span>
+            <span class="value positive" id="stat-win-streak">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Max Loss Streak</span>
+            <span class="value negative" id="stat-loss-streak">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trade Duration -->
+      <div class="card">
+        <div class="card-title">Trade Duration</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Average</span>
+            <span class="value neutral" id="stat-avg-duration">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Shortest</span>
+            <span class="value neutral" id="stat-min-duration">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Longest</span>
+            <span class="value neutral" id="stat-max-duration">—</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ── Breakdown ───────────────────────────────────────────────────── -->
+    <div class="section-label">Breakdown</div>
+    <div class="two-grid">
+
+      <!-- By Direction -->
+      <div class="card">
+        <div class="card-title">By Direction</div>
+        <table class="tablafija">
+          <thead>
+            <tr>
+              <th>Direction</th>
+              <th>Trades</th>
+              <th>Win Rate</th>
+              <th>P&amp;L</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-direction"></tbody>
+        </table>
+      </div>
+
+      <!-- By Symbol -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>By Symbol</span>
+          <!-- Solo se muestran 5 filas inline; Expand abre el modal con todos los símbolos -->
+          <button class="mostrar-trade_sequence-btn" id="bySymbolExpandBtn" style="display:none">Expand</button>
+        </div>
+        <table class="tablafija">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Trades</th>
+              <th>Win Rate</th>
+              <th>P&amp;L</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-symbols"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+
+    <!-- ── Cumulative P&L chart ────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">Cumulative P&amp;L</div>
+      <div class="canvas-wrap">
+        <canvas id="chart" width="1100" height="380"></canvas>
+      </div>
+      <div class="small-note">
+        Blue line: cumulative P&amp;L. Gray horizontal line: zero level.
+      </div>
+    </div>
+
+
+    <!-- ── Drawdown Index chart ────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">Drawdown Index</div>
+      <div class="stats-inline" style="flex-direction:row; gap:32px; margin-bottom:12px;">
+        <div class="stat-line" style="border:none; padding:0;">
+          <span class="label">Drawdown Index&nbsp;</span>
+          <span class="value neutral" id="ddIndexActual">—</span>
+        </div>
+        <div class="stat-line" style="border:none; padding:0;">
+          <span class="label">Max Drawdown&nbsp;</span>
+          <span class="value negative" id="ddMaxDD">—</span>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="ddChart" width="1100" height="380"></canvas>
+      </div>
+      <div class="small-note">
+        Blue line: drawdown index (base 100). Gray horizontal line: base level (100).
+      </div>
+    </div>
+
+
+    <!-- ── Trade History ───────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">Trade History</div>
+      <input type="text" id="searchSymbol" class="search-box" placeholder="Search symbol..." />
+      <div class="tabla-csv-container">
+        <table class="tabla-csv" id="accumulatedTable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Exit Type</th>
+              <th>Open Date</th>
+              <th>Close Date</th>
+              <th>Entry Price</th>
+              <th>Exit Price</th>
+              <th>Risk</th>
+              <th>P&amp;L</th>
+              <th>Cumulative</th>
+              <th>Trade Route</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Trade Route modal -->
+<div id="modal-trade_sequence-bg" class="modal-trade_sequence-bg">
+  <div class="modal-trade_sequence-content">
+    <button class="modal-trade_sequence-close" id="modaltrade_sequenceCloseBtn" title="Close">&times;</button>
+    <div class="modal-trade_sequence-title">Trade Route</div>
+    <div class="modal-trade_sequence-text" id="modaltrade_sequenceText"></div>
+  </div>
+</div>
+
+<!-- Comments modal (editable): View muestra el texto; Edit lo pasa a textarea; Save persiste en la DB (trade_history por pk) -->
+<div id="modal-comment-bg" class="modal-trade_sequence-bg">
+  <div class="modal-trade_sequence-content">
+    <button class="modal-trade_sequence-close" id="modalCommentCloseBtn" title="Close">&times;</button>
+    <div class="modal-trade_sequence-title">Comments</div>
+    <div class="modal-trade_sequence-text" id="modalCommentText"></div>
+    <textarea id="modalCommentInput" style="display:none;width:100%;box-sizing:border-box;resize:vertical;min-height:90px"></textarea>
+    <div style="margin-top:12px;text-align:right">
+      <button class="mostrar-trade_sequence-btn" id="modalCommentEditBtn">Edit</button>
+      <button class="mostrar-trade_sequence-btn" id="modalCommentSaveBtn" style="display:none">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- By Symbol modal: tabla completa con todos los símbolos (la tabla inline solo muestra 5) -->
+<div id="modal-symbols-bg" class="modal-trade_sequence-bg">
+  <div class="modal-trade_sequence-content">
+    <button class="modal-trade_sequence-close" id="modalSymbolsCloseBtn" title="Close">&times;</button>
+    <div class="modal-trade_sequence-title">By Symbol</div>
+    <table class="tablafija">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Trades</th>
+          <th>Win Rate</th>
+          <th>P&amp;L</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-symbols-full"></tbody>
+    </table>
+  </div>
+</div>
+
+
+<script>
+
+  // ── DOM refs ──────────────────────────────────────────────────────────────
+  const message              = document.getElementById("message");
+  const messageCard          = document.getElementById("message-card");
+  const results              = document.getElementById("results");
+  const searchSymbol         = document.getElementById("searchSymbol");
+  const cantidadTotalEl      = document.getElementById("cantidadTotal");
+  const maxPositiveEl        = document.getElementById("maxPositive");
+  const maxNegativeEl        = document.getElementById("maxNegative");
+  const finalAccumulatedEl   = document.getElementById("finalAccumulated");
+  const posTableBody         = document.querySelector("#posTable tbody");
+  const footTotal            = document.getElementById("footTotal");
+  const footCtrader          = document.getElementById("footCtrader");
+  const footBinance          = document.getElementById("footBinance");
+  const accumulatedTableBody = document.querySelector("#accumulatedTable tbody");
+  const canvas               = document.getElementById("chart");
+  const ctx                  = canvas.getContext("2d");
+  const ddCanvas             = document.getElementById("ddChart");
+  const ddCtx                = ddCanvas.getContext("2d");
+
+  const POS_FIXED     = ["SL", "BE0", "BE1", "BE2"];
+
+  // Clasifica cada trade por exchange usando la columna inst guardada en la DB
+  // (congelada al momento del trade) -> robusto ante altas/bajas de símbolos en las listas.
+  function exchangeOf(inst) {                    // CRYPTO -> Binance ; FOREX/CFD -> cTrader
+    return String(inst).toUpperCase() === 'CRYPTO' ? 'binance' : 'ctrader';
+  }
+  const TS_PREFIX_MIN = 3;
+  const TS_PREFIX_MAX = 20;
+
+  let lastAccumulatedData = [];
+
+  searchSymbol.addEventListener("input", filterAccumulatedTable);
+
+  // ── Load & process data ───────────────────────────────────────────────────
+  window.addEventListener("DOMContentLoaded", () => {
+    fetch("/analytics_data")
+      .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); return res.json(); })
+      .then(rawData => {
+        if (!rawData.length) {
+          message.textContent = "No data available.";
+          message.className   = "message";
+          results.classList.remove("hidden");
+          clearUI();
+          return;
+        }
+
+        const rows = rawData.map(cols => ({
+          symbol:         String(cols[0]).trim(),
+          id_pos:         String(cols[1]).trim(),
+          type:           String(cols[2]).trim(),
+          pos:            String(cols[3]).trim(),
+          timeOpen:       String(cols[4]).trim(),
+          timeClose:      String(cols[5]).trim(),
+          pe:             String(cols[6]).trim(),
+          ps:             String(cols[7]).trim(),
+          v1r:            safeNumber(cols[8]),
+          resultado:      safeNumber(cols[9]),
+          trade_sequence: String(cols[10]).trim(),
+          inst:           String(cols[11]).trim(),
+          dd_index:       safeNumber(cols[12]),
+          pk:             safeNumber(cols[13]),
+          comments:       String(cols[14] ?? '').trim()
+        }))
+        .filter(r => isFinite(r.resultado))
+        .sort((a, b) => a.pk - b.pk);   // orden cronológico (pk = orden de cierre) para acumulados/curva correctos
+
+        const processed = processRows(rows);
+        renderResults(processed);
+
+        messageCard.style.display = 'none';
+        results.classList.remove("hidden");
+      })
+      .catch(err => {
+        message.textContent = "Error loading analytics: " + err.message;
+        message.className   = "message error";
+        results.classList.add("hidden");
+        clearUI();
+      });
+  });
+
+  // ── Core calculations ─────────────────────────────────────────────────────
+  function safeNumber(value) {
+    const n = parseFloat(String(value).trim());
+    return isNaN(n) ? NaN : n;
+  }
+
+  function isTsPos(posKey) {
+    const match = posKey.match(/^BE(\d+)$/i);
+    if (!match) return false;
+    const n = parseInt(match[1], 10);
+    return n >= TS_PREFIX_MIN && n <= TS_PREFIX_MAX;
+  }
+
+  // Parses "DD/MM/YYYY HH:MM" → Date
+  function parseTradeDate(s) {
+    if (!s || s === '') return null;
+    try {
+      const [datePart, timePart] = s.split(' ');
+      const [d, m, y] = datePart.split('/');
+      const [h, min]  = (timePart || '00:00').split(':');
+      return new Date(+y, +m - 1, +d, +h, +min);
+    } catch (e) { return null; }
+  }
+
+  function formatDuration(ms) {
+    if (!ms || ms <= 0) return '—';
+    const totalMin = Math.floor(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h >= 24) {
+      const days = Math.floor(h / 24);
+      const rh   = h % 24;
+      return `${days}d ${rh}h ${m}m`;
+    }
+    return `${h}h ${m}m`;
+  }
+
+  function processRows(rows) {
+
+    // ── Exit-type summary ─────────────────────────────────────────────────
+    const posSummary = {};
+    // cantidad/total = conteo y $ globales ; ctrader/binance = conteo ; ctraderTotal/binanceTotal = $ por exchange
+    const mkRow = () => ({ cantidad: 0, total: 0, ctrader: 0, binance: 0, ctraderTotal: 0, binanceTotal: 0 });
+    POS_FIXED.forEach(k => { posSummary[k] = mkRow(); });
+    posSummary["TS"] = mkRow();
+    posSummary["CM"] = mkRow();
+
+    let accumulated = 0;
+    let maxPositive = Number.NEGATIVE_INFINITY;
+    let maxNegative = Number.POSITIVE_INFINITY;
+    const accumulatedData = [];
+
+    rows.forEach(row => {
+      const posKey = row.pos.toUpperCase();
+      const ex = exchangeOf(row.inst);   // 'ctrader' o 'binance' (según inst de la DB)
+      if (posKey === "CM") {
+        posSummary["CM"].cantidad += 1;
+        posSummary["CM"].total   += row.resultado;
+        posSummary["CM"][ex]     += 1;
+        posSummary["CM"][ex + "Total"] += row.resultado;
+      } else if (posSummary[posKey] !== undefined) {
+        posSummary[posKey].cantidad += 1;
+        posSummary[posKey].total   += row.resultado;
+        posSummary[posKey][ex]     += 1;
+        posSummary[posKey][ex + "Total"] += row.resultado;
+      } else if (isTsPos(posKey)) {
+        posSummary["TS"].cantidad += 1;
+        posSummary["TS"].total   += row.resultado;
+        posSummary["TS"][ex]     += 1;
+        posSummary["TS"][ex + "Total"] += row.resultado;
+      }
+
+      accumulated += row.resultado;
+      if (accumulated > maxPositive) maxPositive = accumulated;
+      if (accumulated < maxNegative) maxNegative = accumulated;
+
+      accumulatedData.push({
+        symbol: row.symbol, id_pos: row.id_pos, type: row.type, pos: row.pos,
+        timeOpen: row.timeOpen, timeClose: row.timeClose,
+        pe: row.pe, ps: row.ps, v1r: row.v1r,
+        resultado: row.resultado, acumulado: accumulated,
+        trade_sequence: row.trade_sequence,
+        pk: row.pk, comments: row.comments
+      });
+    });
+
+    if (maxPositive === Number.NEGATIVE_INFINITY) maxPositive = 0;
+    if (maxNegative === Number.POSITIVE_INFINITY) maxNegative = 0;
+
+    // ── Win / Loss ─────────────────────────────────────────────────────────
+    // CM (manual close) is excluded from all quality metrics — it doesn't
+    // represent a normal algorithmic exit and would skew the statistics.
+    const statsRows = rows.filter(r => r.pos.toUpperCase() !== 'CM');
+
+    const wins   = statsRows.filter(r => r.resultado > 0);
+    const losses = statsRows.filter(r => r.resultado < 0);
+    const n      = statsRows.length;
+
+    const winRate  = n > 0 ? (wins.length   / n) * 100 : 0;
+    const lossRate = n > 0 ? (losses.length / n) * 100 : 0;
+
+    const grossProfit = wins.reduce((s, r) => s + r.resultado, 0);
+    const grossLoss   = losses.reduce((s, r) => s + r.resultado, 0);
+
+    const avgWin  = wins.length   > 0 ? grossProfit / wins.length   : 0;
+    const avgLoss = losses.length > 0 ? grossLoss   / losses.length : 0;  // negative
+
+    const largestWin  = wins.length   > 0 ? Math.max(...wins.map(r => r.resultado))   : 0;
+    const largestLoss = losses.length > 0 ? Math.min(...losses.map(r => r.resultado)) : 0;
+
+    const profitFactor = grossLoss !== 0 ? Math.abs(grossProfit / grossLoss) : null;
+    const rewardRisk   = avgLoss   !== 0 ? Math.abs(avgWin     / avgLoss)   : null;
+
+    // ── R-multiples & Expectancy ──────────────────────────────────────────
+    const validR = statsRows.filter(r => r.v1r > 0).map(r => r.resultado / r.v1r);
+    const avgR   = validR.length > 0 ? validR.reduce((s, r) => s + r, 0) / validR.length : null;
+    const bestR  = validR.length > 0 ? Math.max(...validR) : null;
+    const worstR = validR.length > 0 ? Math.min(...validR) : null;
+
+    const winRDecimal  = n > 0 ? wins.length   / n : 0;
+    const lossRDecimal = n > 0 ? losses.length / n : 0;
+    const winRValues   = validR.filter(r => r > 0);
+    const lossRValues  = validR.filter(r => r < 0);
+    const avgWinR  = winRValues.length  > 0 ? winRValues.reduce((s, r)  => s + r, 0) / winRValues.length  : 0;
+    const avgLossR = lossRValues.length > 0 ? lossRValues.reduce((s, r) => s + r, 0) / lossRValues.length : 0;
+    const expectancyR    = (winRDecimal * avgWinR) + (lossRDecimal * avgLossR);
+    const expectancyUSDT = n > 0 ? (grossProfit + grossLoss) / n : 0;
+
+    // ── Índice DD (dd_index) ──────────────────────────────────────────────
+    // El índice se compone en ORDEN DE CIERRE (pk), no de apertura -> ordeno por pk asc.
+    // (time_close es a nivel minuto y no desempata cierres del mismo minuto; pk sí.)
+    const ddData = [...rows]
+      .sort((a, b) => a.pk - b.pk)
+      .map(r => r.dd_index)
+      .filter(v => isFinite(v));
+    const ddIndexActual = ddData.length ? ddData[ddData.length - 1] : null;   // último índice = actual
+    // Max DD (%): peor caída respecto al pico corriente a lo largo de la serie.
+    let ddPeak = -Infinity, ddMaxDD = 0;
+    ddData.forEach(v => {
+      if (v > ddPeak) ddPeak = v;
+      const dd = ddPeak > 0 ? (v - ddPeak) / ddPeak * 100 : 0;   // <= 0
+      if (dd < ddMaxDD) ddMaxDD = dd;
+    });
+
+    // ── Streaks ───────────────────────────────────────────────────────────
+    let maxWinStreak = 0, maxLossStreak = 0, curWin = 0, curLoss = 0;
+    statsRows.forEach(r => {
+      if (r.resultado > 0) {
+        curWin++;  curLoss = 0;
+        if (curWin  > maxWinStreak)  maxWinStreak  = curWin;
+      } else if (r.resultado < 0) {
+        curLoss++; curWin  = 0;
+        if (curLoss > maxLossStreak) maxLossStreak = curLoss;
+      } else {
+        curWin = 0; curLoss = 0;
+      }
+    });
+
+    // ── Trade Duration ────────────────────────────────────────────────────
+    const durations = statsRows
+      .map(r => {
+        const open  = parseTradeDate(r.timeOpen);
+        const close = parseTradeDate(r.timeClose);
+        if (!open || !close) return null;
+        const ms = close - open;
+        return ms > 0 ? ms : null;
+      })
+      .filter(d => d !== null);
+
+    const avgDurationMs = durations.length > 0 ? durations.reduce((s, d) => s + d, 0) / durations.length : 0;
+    const minDurationMs = durations.length > 0 ? Math.min(...durations) : 0;
+    const maxDurationMs = durations.length > 0 ? Math.max(...durations) : 0;
+
+    // ── By Direction ──────────────────────────────────────────────────────
+    const dirStats = trades => ({
+      count:   trades.length,
+      wins:    trades.filter(r => r.resultado > 0).length,
+      winRate: trades.length > 0 ? trades.filter(r => r.resultado > 0).length / trades.length * 100 : 0,
+      pnl:     trades.reduce((s, r) => s + r.resultado, 0),
+    });
+    const longStats  = dirStats(statsRows.filter(r => r.type.toUpperCase() === 'LONG'));
+    const shortStats = dirStats(statsRows.filter(r => r.type.toUpperCase() === 'SHORT'));
+
+    // ── By Symbol ─────────────────────────────────────────────────────────
+    const symbolMap = {};
+    statsRows.forEach(r => {
+      const s = r.symbol.toUpperCase();
+      if (!symbolMap[s]) symbolMap[s] = { count: 0, wins: 0, pnl: 0 };
+      symbolMap[s].count++;
+      if (r.resultado > 0) symbolMap[s].wins++;
+      symbolMap[s].pnl += r.resultado;
+    });
+    const bySymbol = Object.entries(symbolMap)
+      .map(([sym, d]) => ({ sym, ...d, winRate: d.count > 0 ? d.wins / d.count * 100 : 0 }))
+      .sort((a, b) => b.pnl - a.pnl);
+
+    return {
+      posSummary, totalRegistros: rows.length, accumulatedData, maxPositive, maxNegative,
+      finalAccumulated: accumulated,
+      wins: wins.length, losses: losses.length, winRate, lossRate,
+      grossProfit, grossLoss, avgWin, avgLoss, largestWin, largestLoss,
+      profitFactor, rewardRisk,
+      avgR, bestR, worstR, expectancyR, expectancyUSDT,
+      ddData, ddIndexActual, ddMaxDD,
+      maxWinStreak, maxLossStreak,
+      avgDurationMs, minDurationMs, maxDurationMs,
+      longStats, shortStats, bySymbol,
+    };
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function renderResults(data) {
+    cantidadTotalEl.textContent    = data.totalRegistros;
+    maxPositiveEl.textContent      = formatNumber(data.maxPositive);
+    maxNegativeEl.textContent      = formatNumber(data.maxNegative);
+    finalAccumulatedEl.textContent = formatNumber(data.finalAccumulated);
+    applyValueClass(maxPositiveEl,      data.maxPositive);
+    applyValueClass(maxNegativeEl,      data.maxNegative);
+    applyValueClass(finalAccumulatedEl, data.finalAccumulated);
+    renderPosTable(data.posSummary);
+    lastAccumulatedData = data.accumulatedData;
+    renderAccumulatedTable(data.accumulatedData);   // ya viene cronológico (viejo->nuevo)
+    drawChart(data.accumulatedData);
+
+    // Índice DD: gráfico + variables expuestas en la card
+    drawDDChart(data.ddData);
+    setText('ddIndexActual', data.ddIndexActual !== null ? formatNumber(data.ddIndexActual) : '—');
+    set('ddMaxDD', data.ddData.length ? formatNumber(data.ddMaxDD) + '%' : '—', data.ddMaxDD);
+
+    // Métricas de calidad / riesgo / breakdown
+    renderStats(data);
+  }
+
+  // Rellena todos los elementos de estadísticas (Trade Quality, Risk & Patterns, Breakdown)
+  function renderStats(d) {
+    const pct  = v => v !== null ? v.toFixed(1) + '%' : '—';
+    const usd  = v => v !== null ? formatNumber(v) : '—';
+    const r    = v => v !== null ? v.toFixed(3) + ' R' : '—';
+    const x    = v => v !== null ? v.toFixed(2) + 'x' : '—';
+
+    // Win / Loss
+    set('stat-winrate',      pct(d.winRate),    d.winRate);
+    set('stat-lossrate',     pct(d.lossRate),   -d.lossRate);
+    setText('stat-wins',     d.wins);
+    setText('stat-losses',   d.losses);
+    set('stat-largest-win',  usd(d.largestWin),  d.largestWin);
+    set('stat-largest-loss', usd(d.largestLoss), d.largestLoss);
+
+    // Profit Factor
+    const pfText = d.profitFactor === null ? '∞' : d.profitFactor.toFixed(2);
+    setRaw('stat-pf', pfText, d.profitFactor === null ? 1 : d.profitFactor - 1);
+    set('stat-gross-profit', usd(d.grossProfit), d.grossProfit);
+    set('stat-gross-loss',   usd(d.grossLoss),   d.grossLoss);
+    set('stat-avg-win',      usd(d.avgWin),      d.avgWin);
+    set('stat-avg-loss',     usd(d.avgLoss),      d.avgLoss);
+    setRaw('stat-rr', x(d.rewardRisk), d.rewardRisk !== null ? d.rewardRisk - 1 : 0);
+
+    // Expectancy & R-Multiple
+    set('stat-exp-usdt', usd(d.expectancyUSDT), d.expectancyUSDT);
+    set('stat-exp-r',    r(d.expectancyR),      d.expectancyR);
+    set('stat-avg-r',    r(d.avgR),             d.avgR);
+    set('stat-best-r',   r(d.bestR),            d.bestR);
+    set('stat-worst-r',  r(d.worstR),           d.worstR);
+
+    // Streaks
+    setText('stat-win-streak',  d.maxWinStreak);
+    setText('stat-loss-streak', d.maxLossStreak);
+
+    // Duration
+    setText('stat-avg-duration', formatDuration(d.avgDurationMs));
+    setText('stat-min-duration', formatDuration(d.minDurationMs));
+    setText('stat-max-duration', formatDuration(d.maxDurationMs));
+
+    // By Direction
+    const dirBody = document.getElementById('tbody-direction');
+    dirBody.innerHTML = [
+      ['Long',  d.longStats],
+      ['Short', d.shortStats],
+    ].map(([label, s]) => `
+      <tr>
+        <td class="td-label">${label}</td>
+        <td>${s.count}</td>
+        <td class="${s.winRate >= 50 ? 'positive' : 'negative'}">${s.winRate.toFixed(1)}%</td>
+        <td class="${getClassByValue(s.pnl)}">${formatNumber(s.pnl)}</td>
+      </tr>`).join('');
+
+    // By Symbol — helper que arma las filas (reutilizado por la tabla inline y el modal)
+    const symRowsHtml = arr => arr.map(s => `
+      <tr>
+        <td class="td-label">${escapeHtml(s.sym)}</td>
+        <td>${s.count}</td>
+        <td class="${s.winRate >= 50 ? 'positive' : 'negative'}">${s.winRate.toFixed(1)}%</td>
+        <td class="${getClassByValue(s.pnl)}">${formatNumber(s.pnl)}</td>
+      </tr>`).join('');
+
+    // Tabla inline: solo los 5 símbolos con mayor P&L
+    document.getElementById('tbody-symbols').innerHTML = symRowsHtml(d.bySymbol.slice(0, 5));
+
+    // Botón Expand: solo si hay más de 5 símbolos; abre el modal con la tabla completa
+    const symExpandBtn = document.getElementById('bySymbolExpandBtn');
+    if (d.bySymbol.length > 5) {
+      symExpandBtn.style.display = '';
+      symExpandBtn.onclick = () => {
+        document.getElementById('tbody-symbols-full').innerHTML = symRowsHtml(d.bySymbol);
+        document.getElementById('modal-symbols-bg').classList.add('active');
+      };
+    } else {
+      symExpandBtn.style.display = 'none';
+    }
+  }
+
+  // Helper: set text and apply color class based on sign of value
+  function set(id, text, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className   = 'value ' + getClassByValue(value);
+  }
+  function setRaw(id, text, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className   = 'value ' + getClassByValue(value);
+  }
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  // ── Render functions ──────────────────────────────────────────────────────
+  function renderPosTable(posSummary) {
+    posTableBody.innerHTML = "";
+    // Cada celda: valor monetario + conteo entre paréntesis, ej: "-10.00 (1)".
+    const cell = (money, count) => `<td class="${getClassByValue(money)}">${formatNumber(money)} (${count})</td>`;
+    let totalCount = 0, totalMoney = 0, ctCount = 0, ctMoney = 0, bnCount = 0, bnMoney = 0;
+    [...POS_FIXED, "TS", "CM"].forEach(key => {
+      const s = posSummary[key];
+      totalCount += s.cantidad;  totalMoney += s.total;
+      ctCount    += s.ctrader;   ctMoney    += s.ctraderTotal;
+      bnCount    += s.binance;   bnMoney    += s.binanceTotal;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(key)}</td>
+        ${cell(s.ctraderTotal, s.ctrader)}
+        ${cell(s.binanceTotal, s.binance)}
+        ${cell(s.total, s.cantidad)}`;
+      posTableBody.appendChild(tr);
+    });
+    footCtrader.innerHTML = `${formatNumber(ctMoney)} (${ctCount})`;
+    footBinance.innerHTML = `${formatNumber(bnMoney)} (${bnCount})`;
+    footTotal.innerHTML   = `${formatNumber(totalMoney)} (${totalCount})`;
+    footCtrader.className  = getClassByValue(ctMoney);
+    footBinance.className  = getClassByValue(bnMoney);
+    footTotal.className    = getClassByValue(totalMoney);
+  }
+
+  function renderAccumulatedTable(accumulatedData) {
+    accumulatedTableBody.innerHTML = "";
+    // Se muestra al revés: último cierre arriba de todo. slice() copia para NO mutar el array
+    // original, que los gráficos (curva/acumulado/drawdown) siguen leyendo en orden cronológico (pk asc).
+    accumulatedData.slice().reverse().forEach(item => {
+      const tr = document.createElement("tr");
+      tr.dataset.ticker = item.symbol.toLowerCase();
+      const symbolLower = item.symbol.toLowerCase();
+      const symbolUpper = item.symbol.toUpperCase();
+      tr.innerHTML = `
+        <td class="td-ticker">${escapeHtml(symbolUpper)}</td>
+        <td>${escapeHtml(item.id_pos)}</td>
+        <td>${escapeHtml(item.type)}</td>
+        <td>${escapeHtml(item.pos)}</td>
+        <td>${escapeHtml(item.timeOpen)}</td>
+        <td>${escapeHtml(item.timeClose)}</td>
+        <td>${escapeHtml(item.pe)}</td>
+        <td>${escapeHtml(item.ps)}</td>
+        <td>${formatNumber(item.v1r)}</td>
+        <td class="${getClassByValue(item.resultado)}">${formatNumber(item.resultado)}</td>
+        <td class="${getClassByValue(item.acumulado)}">${formatNumber(item.acumulado)}</td>`;
+      tr.querySelector(".td-ticker").addEventListener("click", () =>
+        window.open(`/analytics_symbol?ticker=${symbolLower}`, "_blank")
+      );
+      const tdSec = document.createElement("td");
+      const btn   = document.createElement("button");
+      btn.className   = "mostrar-trade_sequence-btn";
+      btn.textContent = "View";
+      btn.onclick = () => mostrarModaltrade_sequence(item.trade_sequence || '');
+      tdSec.appendChild(btn);
+      tr.appendChild(tdSec);
+
+      // Columna Comments: View abre el modal (editable). Le pasamos el item para poder mutar su comentario al guardar.
+      const tdCom = document.createElement("td");
+      const btnCom = document.createElement("button");
+      btnCom.className   = "mostrar-trade_sequence-btn";
+      btnCom.textContent = "View";
+      btnCom.onclick = () => mostrarModalComment(item);
+      tdCom.appendChild(btnCom);
+      tr.appendChild(tdCom);
+
+      accumulatedTableBody.appendChild(tr);
+    });
+  }
+
+  function filterAccumulatedTable() {
+    const filter = searchSymbol.value.trim().toLowerCase();
+    accumulatedTableBody.querySelectorAll("tr").forEach(tr => {
+      tr.style.display = (!filter || tr.dataset.ticker.includes(filter)) ? "" : "none";
+    });
+  }
+
+  function drawChart(accumulatedData) {
+    const width = canvas.width, height = canvas.height, padding = 50;
+    ctx.clearRect(0, 0, width, height);
+    if (!accumulatedData || accumulatedData.length === 0) return;
+
+    const values = accumulatedData.map(d => d.acumulado);
+    const minVal = Math.min(...values, 0);
+    const maxVal = Math.max(...values, 0);
+    let range    = maxVal - minVal;
+    if (range === 0) range = 1;
+
+    const chartWidth  = width  - padding * 2;
+    const chartHeight = height - padding * 2;
+    const xStep = accumulatedData.length > 1 ? chartWidth / (accumulatedData.length - 1) : chartWidth;
+    const getX  = i   => padding + i * xStep;
+    const getY  = val => padding + ((maxVal - val) / range) * chartHeight;
+    const zeroY = getY(0);
+
+    drawGridLines(width, height, padding, chartWidth, chartHeight, minVal, maxVal, zeroY);
+    drawAxes(width, height, padding);
+
+    ctx.beginPath();
+    ctx.lineWidth = 2; ctx.strokeStyle = "#2563eb";
+    accumulatedData.forEach((point, i) => {
+      i === 0 ? ctx.moveTo(getX(i), getY(point.acumulado))
+              : ctx.lineTo(getX(i), getY(point.acumulado));
+    });
+    ctx.stroke();
+
+    if (accumulatedData.length <= 150) {
+      ctx.fillStyle = "#2563eb";
+      accumulatedData.forEach((point, i) => {
+        ctx.beginPath();
+        ctx.arc(getX(i), getY(point.acumulado), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  }
+
+  // Gráfico del índice DD (mismo formato que el Cumulative P&L, pero con línea base en 100).
+  function drawDDChart(ddData) {
+    const width = ddCanvas.width, height = ddCanvas.height, padding = 50;
+    ddCtx.clearRect(0, 0, width, height);
+    if (!ddData || ddData.length === 0) return;
+
+    const BASE   = 100;                                  // línea de referencia del índice
+    const minVal = Math.min(...ddData, BASE);
+    const maxVal = Math.max(...ddData, BASE);
+    let range    = maxVal - minVal;
+    if (range === 0) range = 1;
+
+    const chartWidth  = width  - padding * 2;
+    const chartHeight = height - padding * 2;
+    const xStep = ddData.length > 1 ? chartWidth / (ddData.length - 1) : chartWidth;
+    const getX  = i   => padding + i * xStep;
+    const getY  = val => padding + ((maxVal - val) / range) * chartHeight;
+    const baseY = getY(BASE);
+
+    // Grid horizontal + etiquetas
+    ddCtx.save();
+    ddCtx.strokeStyle = "#e5e7eb"; ddCtx.lineWidth = 1;
+    ddCtx.fillStyle   = "#6b7280"; ddCtx.font      = "12px Arial";
+    const hLines = 5;
+    for (let i = 0; i <= hLines; i++) {
+      const y = padding + (chartHeight / hLines) * i;
+      ddCtx.beginPath(); ddCtx.moveTo(padding, y); ddCtx.lineTo(width - padding, y); ddCtx.stroke();
+      ddCtx.fillText(formatNumber(maxVal - ((maxVal - minVal) / hLines) * i), 8, y + 4);
+    }
+    // Línea base (100)
+    ddCtx.strokeStyle = "#9ca3af";
+    ddCtx.beginPath(); ddCtx.moveTo(padding, baseY); ddCtx.lineTo(width - padding, baseY); ddCtx.stroke();
+    // Etiqueta "100" solo si queda en el medio (si no, se solapa con la etiqueta de grilla del borde).
+    if (BASE > minVal && BASE < maxVal) {
+      ddCtx.fillStyle = "#374151";
+      ddCtx.fillText(String(BASE), 22, baseY - 6);
+    }
+    // Eje
+    ddCtx.strokeStyle = "#374151"; ddCtx.lineWidth = 1.2;
+    ddCtx.beginPath();
+    ddCtx.moveTo(padding, padding);
+    ddCtx.lineTo(padding, height - padding);
+    ddCtx.lineTo(width - padding, height - padding);
+    ddCtx.stroke();
+    ddCtx.restore();
+
+    // Línea del índice
+    ddCtx.beginPath();
+    ddCtx.lineWidth = 2; ddCtx.strokeStyle = "#2563eb";
+    ddData.forEach((v, i) => {
+      i === 0 ? ddCtx.moveTo(getX(i), getY(v)) : ddCtx.lineTo(getX(i), getY(v));
+    });
+    ddCtx.stroke();
+
+    if (ddData.length <= 150) {
+      ddCtx.fillStyle = "#2563eb";
+      ddData.forEach((v, i) => {
+        ddCtx.beginPath();
+        ddCtx.arc(getX(i), getY(v), 2.5, 0, Math.PI * 2);
+        ddCtx.fill();
+      });
+    }
+  }
+
+  function drawGridLines(width, height, padding, chartWidth, chartHeight, minVal, maxVal, zeroY) {
+    ctx.save();
+    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
+    ctx.fillStyle   = "#6b7280"; ctx.font      = "12px Arial";
+    const horizontalLines = 5;
+    for (let i = 0; i <= horizontalLines; i++) {
+      const y = padding + (chartHeight / horizontalLines) * i;
+      ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(width - padding, y); ctx.stroke();
+      ctx.fillText(formatNumber(maxVal - ((maxVal - minVal) / horizontalLines) * i), 8, y + 4);
+    }
+    ctx.strokeStyle = "#9ca3af";
+    ctx.beginPath(); ctx.moveTo(padding, zeroY); ctx.lineTo(width - padding, zeroY); ctx.stroke();
+    // Etiqueta "0" solo si el cero queda en el medio (si no, se solapa con la etiqueta de grilla del borde).
+    if (0 > minVal && 0 < maxVal) {
+      ctx.fillStyle = "#374151";
+      ctx.fillText("0", 30, zeroY - 6);
+    }
+    ctx.restore();
+  }
+
+  function drawAxes(width, height, padding) {
+    ctx.save();
+    ctx.strokeStyle = "#374151"; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function formatNumber(value) { return Number(value).toFixed(2); }
+  function getClassByValue(value) {
+    if (value > 0) return "positive";
+    if (value < 0) return "negative";
+    return "neutral";
+  }
+  function applyValueClass(el, value) {
+    el.classList.remove("positive", "negative", "neutral");
+    el.classList.add(getClassByValue(value));
+  }
+  function clearUI() {
+    posTableBody.innerHTML = ""; accumulatedTableBody.innerHTML = "";
+    cantidadTotalEl.textContent = footTotal.textContent = "0";
+    maxPositiveEl.textContent = maxNegativeEl.textContent = finalAccumulatedEl.textContent = "0";
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ddCtx.clearRect(0, 0, ddCanvas.width, ddCanvas.height);
+    lastAccumulatedData = [];
+  }
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  }
+
+  // ── Trade Route modal ─────────────────────────────────────────────────────
+  function mostrarModaltrade_sequence(texto) {
+    document.getElementById('modaltrade_sequenceText').textContent = texto || '(empty)';
+    document.getElementById('modal-trade_sequence-bg').classList.add('active');
+  }
+  function cerrarModaltrade_sequence() {
+    document.getElementById('modal-trade_sequence-bg').classList.remove('active');
+  }
+  document.getElementById('modaltrade_sequenceCloseBtn').onclick = cerrarModaltrade_sequence;
+  document.getElementById('modal-trade_sequence-bg').onclick = e => { if (e.target === e.currentTarget) cerrarModaltrade_sequence(); };
+  document.addEventListener('keydown', e => { if (e.key === "Escape") cerrarModaltrade_sequence(); });
+
+  // ── By Symbol modal (tabla completa) ──────────────────────────────────────
+  function cerrarModalSymbols() {
+    document.getElementById('modal-symbols-bg').classList.remove('active');
+  }
+  document.getElementById('modalSymbolsCloseBtn').onclick = cerrarModalSymbols;
+  document.getElementById('modal-symbols-bg').onclick = e => { if (e.target === e.currentTarget) cerrarModalSymbols(); };
+  document.addEventListener('keydown', e => { if (e.key === "Escape") cerrarModalSymbols(); });
+
+  // ── Comments modal (editable) ─────────────────────────────────────────────
+  let commentItem = null;   // item de la fila abierta; al guardar mutamos item.comments para no recargar la tabla
+  const commentBg   = document.getElementById('modal-comment-bg');
+  const commentText = document.getElementById('modalCommentText');
+  const commentIn   = document.getElementById('modalCommentInput');
+  const commentEdit = document.getElementById('modalCommentEditBtn');
+  const commentSave = document.getElementById('modalCommentSaveBtn');
+
+  function mostrarModalComment(item) {
+    commentItem = item;
+    commentText.textContent = item.comments || '(empty)';
+    commentText.style.display = '';
+    commentIn.style.display   = 'none';
+    commentEdit.style.display = '';
+    commentSave.style.display = 'none';
+    commentBg.classList.add('active');
+  }
+  function cerrarModalComment() { commentBg.classList.remove('active'); }
+
+  commentEdit.onclick = () => {   // vista -> edición
+    commentIn.value = commentItem ? (commentItem.comments || '') : '';
+    commentText.style.display = 'none';
+    commentIn.style.display   = '';
+    commentEdit.style.display = 'none';
+    commentSave.style.display = '';
+  };
+  commentSave.onclick = () => {   // guarda en la DB (por pk) y vuelve a vista
+    const nuevo = commentIn.value;
+    fetch('/comment_save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ pk: commentItem.pk, comment: nuevo })
+    }).then(r => {
+      if (!r.ok) return;
+      commentItem.comments = nuevo;   // refleja el cambio sin recargar
+      commentText.textContent = nuevo || '(empty)';
+      commentText.style.display = '';
+      commentIn.style.display   = 'none';
+      commentEdit.style.display = '';
+      commentSave.style.display = 'none';
+    });
+  };
+  document.getElementById('modalCommentCloseBtn').onclick = cerrarModalComment;
+  commentBg.onclick = e => { if (e.target === e.currentTarget) cerrarModalComment(); };
+  document.addEventListener('keydown', e => { if (e.key === "Escape") cerrarModalComment(); });
+
+  // ── Tarjetas por exchange: TOTALES de cada métrica de Globales ────────────
+  // [label, key, globalOnly, unit, colored]
+  //   globalOnly = solo existe a nivel global (sin _binance/_ctrader)
+  //   unit: '' USDT | '%' porcentaje | '#' entero | 'frac%' fracción->%
+  //   colored = true -> se colorea verde/rojo (P&L) ; false -> igual que la etiqueta
+  const GL_TOTALS = [
+    ['Capital',           'capital',           false, '',     false],
+    ['Balance',           'balance',           false, '',     true ],
+    ['Unrealized P&L',    'unrealized_pnl',    false, '',     true ],
+    ['Equity',            'equity',            false, '',     true ],
+    ['Active sockets',    'active_sockets',    false, '#',    false],
+    ['Risk USDT',         'risk_usdt',         false, '',     false],
+    ['Capital at risk',   'capital_at_risk',   false, '%',    false],
+    ['Available capital', 'available_capital', false, '',     false],
+    ['Locked profit',     'locked_profit',     false, '',     true ],
+    ['Locked equity',     'locked_equity',     false, '',     true ],
+  ];
+
+  // Métricas solo-globales, unificadas en el card "Risk management". [label, key, unit]
+  const RISK_METRICS = [
+    ['Risk max',       'gl_risk_max',       ''],
+    ['Risk limit',     'gl_risk_limit',     ''],
+    ['Available risk', 'gl_available_risk', ''],
+    ['Risk factor',    'gl_perc_f',         'frac%'],
+  ];
+
+  // ── Métricas direccionales: tienen _long / _short (y cada una × exchange) ──
+  // [label, key, unit, colored]
+  const GL_DIRECTIONAL = [
+    ['Active sockets',  'active_sockets', '#', false],
+    ['Realized P&L',    'balance',        '',  true ],
+    ['Unrealized P&L',  'unrealized_pnl', '',  true ],
+    ['Equity',          'equity',         '',  true ],
+  ];
+
+  const glFmt = (v, unit) => {
+    if (v === undefined || v === null || isNaN(v)) return '—';
+    if (unit === '#')     return String(v);
+    if (unit === '%')     return Number(v).toFixed(2) + '%';
+    if (unit === 'frac%') return (Number(v) * 100).toFixed(2) + '%';
+    return Number(v).toFixed(2);
+  };
+  const glCls = v => (v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral');
+
+  // suf: '' (global) | '_binance' | '_ctrader'. Arma el <tbody> de totales del exchange.
+  function renderGlCard(data, suf, tbodyId) {
+    const dash = `<td class="gl-plain">—</td>`;
+    document.getElementById(tbodyId).innerHTML = GL_TOTALS.map(([label, key, globalOnly, unit, colored]) => {
+      // Las métricas solo-globales no tienen versión por broker -> guion en Binance/cTrader.
+      if (globalOnly && suf !== '') return `<tr><td>${label}</td>${dash}</tr>`;
+      const v   = data['gl_' + key + suf];
+      const cls = colored ? glCls(v) : 'gl-plain';       // P&L colorea; el resto igual que la etiqueta
+      return `<tr><td>${label}</td><td class="${cls}">${glFmt(v, unit)}</td></tr>`;
+    }).join('');
+  }
+
+  // dir: 'long' | 'short'. Fila por métrica con columnas Global / Binance / cTrader.
+  function renderDirCard(data, dir, tbodyId) {
+    const other = dir === 'long' ? 'short' : 'long';
+    const cell  = (v, unit, colored) =>
+      `<td class="${colored ? glCls(v) : 'gl-plain'}">${glFmt(v, unit)}</td>`;
+
+    const rows = GL_DIRECTIONAL.map(([label, key, unit, colored]) => {
+      const base = 'gl_' + key + '_' + dir;              // ej. gl_balance_long
+      return `<tr><td>${label}</td>`
+           + cell(data[base],              unit, colored) // global
+           + cell(data[base + '_binance'], unit, colored) // binance
+           + cell(data[base + '_ctrader'], unit, colored) // ctrader
+           + '</tr>';
+    });
+
+    // Exposición %: participación de esta dirección sobre el total de sockets (por columna).
+    const expoCell = suf => {
+      const mine  = data['gl_active_sockets_' + dir   + suf] || 0;
+      const their = data['gl_active_sockets_' + other + suf] || 0;
+      const tot   = mine + their;
+      const pct   = tot > 0 ? (mine / tot * 100) : 0;
+      return `<td class="neutral">${pct.toFixed(1)}%</td>`;
+    };
+    rows.push(`<tr><td>% Exposure</td>${expoCell('')}${expoCell('_binance')}${expoCell('_ctrader')}</tr>`);
+
+    document.getElementById(tbodyId).innerHTML = rows.join('');
+  }
+
+  // Card "Risk management": las 4 métricas solo-globales (sin coloreo, como la etiqueta).
+  function renderRiskCard(data) {
+    document.getElementById('risk-mgmt').innerHTML = RISK_METRICS.map(([label, key, unit]) =>
+      `<tr><td>${label}</td><td class="gl-plain">${glFmt(data[key], unit)}</td></tr>`
+    ).join('');
+  }
+
+  // Margin broker-aware (toggle Binance/cTrader). Filas comunes: Wallet balance, Worst case
+  // (Σ risk_usdt en SL - locked_profit) y Worst case % = la métrica EXACTA del control (bloquea al abrir si
+  // superaría Max risk). Filas específicas por broker: Binance -> margin ratio / maint / available;
+  // cTrader -> margin level (INVERTIDO: bajo = peligro) / used margin / free margin.
+  let marginBroker   = 'binance';
+  let lastMarginData = null;
+
+  function renderMarginCard(data) {
+    const b         = marginBroker;
+    const wallet    = data['gl_wallet_balance_' + b] || 0;
+    const worstCase = (data['gl_risk_usdt_' + b] || 0) - (data['gl_locked_profit_' + b] || 0);
+    const worstPct  = wallet > 0 ? worstCase / wallet * 100 : 0;
+    const overLimit = worstPct > (data.gl_max_risk_pct || 0) * 100;
+
+    let specific;
+    if (b === 'binance') {
+      specific = [
+        ['Margin ratio',      glFmt(data.gl_margin_ratio_binance,      '%')],
+        ['Maint. margin',     glFmt(data.gl_maint_margin_binance,      '')],
+        ['Available balance', glFmt(data.gl_available_balance_binance, '')],
+      ];
+    } else {
+      const equity = wallet + (data.gl_unrealized_pnl_ctrader || 0);   // equity = balance + uPnL
+      const used   = data.gl_used_margin_ctrader || 0;
+      specific = [
+        ['Margin level', used > 0 ? glFmt(equity / used * 100, '%') : '—'],  // invertido: bajo = riesgo de stop-out
+        ['Used margin',  glFmt(used, '')],
+        ['Free margin',  glFmt(equity - used, '')],
+      ];
+    }
+
+    const rows = [
+      ['Wallet balance', glFmt(wallet, ''), 'gl-plain'],
+      ...specific.map(([l, v]) => [l, v, 'gl-plain']),
+      ['Worst case',     glFmt(worstCase, ''), 'gl-plain'],
+      ['Worst case %',   glFmt(worstPct, '%'), overLimit ? 'negative' : 'gl-plain'],
+      ['Max risk',       glFmt(data.gl_max_risk_pct, 'frac%'), 'gl-plain'],
+    ];
+    document.getElementById('margin-body').innerHTML =
+      rows.map(([l, v, c]) => `<tr><td>${l}</td><td class="${c}">${v}</td></tr>`).join('');
+  }
+
+  // Toggle Binance/cTrader del cuadro Margin (re-renderiza con los últimos datos recibidos).
+  document.querySelectorAll('.margin-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      marginBroker = btn.dataset.broker;
+      document.querySelectorAll('.margin-tab').forEach(x => x.classList.toggle('active', x === btn));
+      if (lastMarginData) renderMarginCard(lastMarginData);
+    });
+  });
+
+  // ── Live portfolio update ─────────────────────────────────────────────────
+  function actualizarDatos() {
+    fetch('/datos_analytics')
+      .then(res => res.json())
+      .then(data => {
+        // Totales por exchange (todas las métricas de Globales, sin repetir)
+        renderGlCard(data, '',         'gl-global');
+        renderGlCard(data, '_binance', 'gl-binance');
+        renderGlCard(data, '_ctrader', 'gl-ctrader');
+        // Direccional (long / short) discriminado por exchange
+        renderDirCard(data, 'long',  'dir-long');
+        renderDirCard(data, 'short', 'dir-short');
+        // Risk management (métricas solo-globales unificadas)
+        renderRiskCard(data);
+        // Margin (broker-aware: Binance / cTrader según el toggle)
+        lastMarginData = data;
+        renderMarginCard(data);
+      })
+      .catch(err => console.error('Error /datos_analytics:', err));
+  }
+  setInterval(actualizarDatos, 5000);
+  actualizarDatos();
+
+</script>
+</body>
+</html>

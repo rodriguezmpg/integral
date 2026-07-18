@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics_symbol.css') }}">
+   <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+  <title>Symbol Analysis</title>
+
+</head>
+<body>
+
+<div class="container">
+
+  <div class="page-title" id="pageTitle">Symbol Analysis</div>
+
+  <div id="results">
+
+    <!-- ── Overview ────────────────────────────────────────────────────── -->
+    <div class="section-label" style="font-weight:bold;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:4px 0 12px;">Overview</div>
+    <div class="top-grid" style="max-width:none;">
+
+      <!-- COL 1: Resumen por tipo de salida -->
+      <div class="card">
+        <div class="card-title">Summary</div>
+        <table class="tablafija" id="posTable">
+          <thead>
+            <tr>
+              <th>Exit Type</th>
+              <th>Count</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="posTableBody"></tbody>
+          <tfoot>
+            <tr>
+              <td>TOTAL</td>
+              <td id="footCantidad">0</td>
+              <td id="footTotal">0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div class="stat-line" style="margin-top:12px;">
+          <span class="label">Total valid records</span>
+          <span class="value neutral" id="cantidadTotal">0</span>
+        </div>
+      </div>
+
+      <!-- COL 2: Performance (curva acumulada) -->
+      <div class="card">
+        <div class="card-title">Performance</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Peak Cumulative P&amp;L</span>
+            <span class="value positive" id="maxPositive">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Trough Cumulative P&amp;L</span>
+            <span class="value negative" id="maxNegative">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Final Cumulative P&amp;L</span>
+            <span class="value neutral" id="finalAccumulated">0</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ── Trade Quality ───────────────────────────────────────────────── -->
+    <div class="section-label" style="font-weight:bold;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:4px 0 12px;">Trade Quality</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px;align-items:start;">
+
+      <!-- Win / Loss -->
+      <div class="card">
+        <div class="card-title">Win / Loss</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Win Rate</span>
+            <span class="value positive" id="stat-winrate">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Loss Rate</span>
+            <span class="value negative" id="stat-lossrate">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Wins</span>
+            <span class="value neutral" id="stat-wins">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Losses</span>
+            <span class="value neutral" id="stat-losses">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Largest Win</span>
+            <span class="value positive" id="stat-largest-win">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Largest Loss</span>
+            <span class="value negative" id="stat-largest-loss">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profit Factor -->
+      <div class="card">
+        <div class="card-title">Profit Factor</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Profit Factor</span>
+            <span class="value neutral" id="stat-pf">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Gross Profit</span>
+            <span class="value positive" id="stat-gross-profit">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Gross Loss</span>
+            <span class="value negative" id="stat-gross-loss">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Avg Win</span>
+            <span class="value positive" id="stat-avg-win">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Avg Loss</span>
+            <span class="value negative" id="stat-avg-loss">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Reward / Risk</span>
+            <span class="value neutral" id="stat-rr">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expectancy & R-multiples -->
+      <div class="card">
+        <div class="card-title">Expectancy &amp; R-Multiple</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Expectancy (USDT)</span>
+            <span class="value neutral" id="stat-exp-usdt">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Expectancy (R)</span>
+            <span class="value neutral" id="stat-exp-r">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Avg R-Multiple</span>
+            <span class="value neutral" id="stat-avg-r">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Best R</span>
+            <span class="value positive" id="stat-best-r">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Worst R</span>
+            <span class="value negative" id="stat-worst-r">—</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ── Patterns ────────────────────────────────────────────────────── -->
+    <div class="section-label" style="font-weight:bold;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:4px 0 12px;">Patterns</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px;align-items:start;">
+
+      <!-- Streaks -->
+      <div class="card">
+        <div class="card-title">Streaks</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Max Win Streak</span>
+            <span class="value positive" id="stat-win-streak">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Max Loss Streak</span>
+            <span class="value negative" id="stat-loss-streak">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trade Duration -->
+      <div class="card">
+        <div class="card-title">Trade Duration</div>
+        <div class="stats-inline">
+          <div class="stat-line">
+            <span class="label">Average</span>
+            <span class="value neutral" id="stat-avg-duration">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Shortest</span>
+            <span class="value neutral" id="stat-min-duration">—</span>
+          </div>
+          <div class="stat-line">
+            <span class="label">Longest</span>
+            <span class="value neutral" id="stat-max-duration">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- By Direction -->
+      <div class="card">
+        <div class="card-title">By Direction</div>
+        <table class="tablafija">
+          <thead>
+            <tr>
+              <th>Direction</th>
+              <th>Trades</th>
+              <th>Win Rate</th>
+              <th>P&amp;L</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-direction"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+
+    <div class="card">
+      <div class="card-title">Cumulative P&amp;L</div>
+      <div class="canvas-wrap">
+        <canvas id="chart" width="1100" height="380"></canvas>
+      </div>
+      <div class="small-note">
+        Blue line: cumulative P&amp;L. Gray horizontal line: zero level.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cumulative Detail</div>
+      <div class="tabla-csv-container">
+        <table class="tabla-csv" id="accumulatedTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Exit Type</th>
+              <th>Open Date</th>
+              <th>Close Date</th>
+              <th>Entry Price</th>
+              <th>Exit Price</th>
+              <th>Risk</th>
+              <th>P&amp;L</th>
+              <th>Cumulative</th>
+              <th>Trade Route</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="movimientos-header">
+        <div class="card-title" style="margin-bottom:0">Movements</div>
+        <label class="mov-toggle">
+          <input type="checkbox" id="toggle-ff" onchange="toggleFF(this)">
+          <span id="toggle-ff-label">Show Swap</span>
+        </label>
+      </div>
+      <div class="tabla-csv-container">
+        <table class="tabla-csv" id="tablaCsv">
+          <thead>
+            <tr>
+              <th>ID Order</th><th>ID Pos</th><th>Type</th><th>Pos</th><th>PE</th><th>SL</th><th>R1</th><th>R2</th>
+              <th>Qty</th><th>V1R</th><th>PnL</th><th>Balance</th><th>commission</th><th>Time</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="modal-trade_sequence-bg" class="modal-trade_sequence-bg">
+  <div class="modal-trade_sequence-content">
+    <button class="modal-trade_sequence-close" id="modaltrade_sequenceCloseBtn">&times;</button>
+    <div class="modal-trade_sequence-title">Trade Route</div>
+    <div class="modal-trade_sequence-text" id="modaltrade_sequenceText"></div>
+  </div>
+</div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const ticker = (urlParams.get("ticker") || "ethusdt").toLowerCase();
+  document.getElementById("pageTitle").textContent = `Complete Analysis - ${ticker.toUpperCase()}`;
+  document.title = `Analysis ${ticker.toUpperCase()}`;
+
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+
+  const POS_FIXED = ["SL", "BE0", "BE1", "BE2"];
+  const TS_PREFIX_MIN = 3;
+  const TS_PREFIX_MAX = 20;
+
+  window.addEventListener("DOMContentLoaded", () => {
+    cargarAnalisis();
+    cargarMovimientos();
+  });
+
+  function cargarAnalisis() {
+    fetch(`/analytics_data_symbol?ticker=${ticker}`)
+      .then(res => res.json())
+      .then(rawData => {
+        if (!rawData || !rawData.length) return;
+
+        const rows = rawData.map(cols => ({
+          symbol:    String(cols[0]).trim(),
+          id_pos:    String(cols[1]).trim(),
+          type:      String(cols[2]).trim(),
+          pos:       String(cols[3]).trim(),
+          timeOpen:  String(cols[4]).trim(),
+          timeClose: String(cols[5]).trim(),
+          pe:        String(cols[6]).trim(),
+          ps:        String(cols[7]).trim(),
+          v1r:       safeNumber(cols[8]),
+          resultado: safeNumber(cols[9]),
+          trade_sequence: String(cols[10]).trim()
+        }))
+        .filter(r => isFinite(r.resultado))
+        // La query llega en orden descendente; se ordena por apertura para que la curva
+        // acumulada, los picos y las rachas se calculen cronológicamente (viejo -> nuevo).
+        .sort((a, b) => tsOpen(a.timeOpen) - tsOpen(b.timeOpen));
+
+        const data = processRows(rows);
+        renderAnalisisData(data);
+      })
+      .catch(err => console.error("Error al cargar análisis:", err));
+  }
+
+  function cargarMovimientos() {
+    // Label del toggle: crypto (ticker termina en usdt) -> Founding Fee; forex/CFD -> Swap. Igual que main_loop.
+    const isCrypto = ticker.endsWith('usdt');
+    document.getElementById('toggle-ff-label').textContent = isCrypto ? 'Show Founding Fee' : 'Show Swap';
+
+    fetch(`/movimientos_all?ticker=${ticker}`)
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector('#tablaCsv tbody');
+        tbody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="14" style="text-align:center;">No movements recorded</td></tr>`;
+          return;
+        }
+
+        let lastIdPos = null;
+
+        data.forEach((row) => {
+          const currentIdPos = row[1] !== null ? String(row[1]).trim() : "";
+
+          if (lastIdPos !== null && currentIdPos !== lastIdPos) {
+            const separatorTr = document.createElement('tr');
+            separatorTr.className = 'row-separator';
+            separatorTr.innerHTML = `<td colspan="14"></td>`;
+            tbody.appendChild(separatorTr);
+          }
+
+          const tr = document.createElement('tr');
+          // Filas de Founding Fee / Swap: pos está en row[3] (movimientos_all trae id_pos extra). Arrancan ocultas.
+          const pos = String(row[3] ?? '').toUpperCase();
+          if (pos === 'FF' || pos === 'SWAP') tr.classList.add('ff-row');
+          row.forEach(col => {
+            const td = document.createElement('td');
+            td.textContent = (col ?? '');
+            tr.appendChild(td);
+          });
+
+          tbody.appendChild(tr);
+          lastIdPos = currentIdPos;
+        });
+      })
+      .catch(err => console.error("Error al cargar movimientos:", err));
+  }
+
+  // Muestra/oculta las filas de Founding Fee / Swap según el checkbox (igual que main_loop).
+  function toggleFF(cb) {
+    document.getElementById('tablaCsv').classList.toggle('show-ff', cb.checked);
+  }
+
+  function safeNumber(value) {
+    const n = parseFloat(String(value).trim());
+    return isNaN(n) ? NaN : n;
+  }
+
+  // "DD/MM/YYYY HH:MM" -> Date (null si no parsea)
+  function parseTradeDate(s) {
+    if (!s) return null;
+    try {
+      const [datePart, timePart] = s.split(' ');
+      const [d, m, y] = datePart.split('/');
+      const [h, min]  = (timePart || '00:00').split(':');
+      return new Date(+y, +m - 1, +d, +h, +min);
+    } catch (e) { return null; }
+  }
+  const tsOpen = s => { const d = parseTradeDate(s); return d ? d.getTime() : 0; };
+
+  function formatDuration(ms) {
+    if (!ms || ms <= 0) return '—';
+    const totalMin = Math.floor(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h >= 24) {
+      const days = Math.floor(h / 24);
+      const rh   = h % 24;
+      return `${days}d ${rh}h ${m}m`;
+    }
+    return `${h}h ${m}m`;
+  }
+
+  function isTsPos(posKey) {
+    const match = posKey.match(/^BE(\d+)$/i);
+    if (!match) return false;
+    const n = parseInt(match[1], 10);
+    return n >= TS_PREFIX_MIN && n <= TS_PREFIX_MAX;
+  }
+
+  function processRows(rows) {
+    const posSummary = {};
+    POS_FIXED.forEach(k => { posSummary[k] = { cantidad: 0, total: 0 }; });
+    posSummary["TS"] = { cantidad: 0, total: 0 };
+    posSummary["CM"] = { cantidad: 0, total: 0 };
+
+    let accumulated = 0;
+    let maxPositive = Number.NEGATIVE_INFINITY;
+    let maxNegative = Number.POSITIVE_INFINITY;
+    const accumulatedData = [];
+
+    rows.forEach(row => {
+      const posKey = row.pos.toUpperCase();
+      if (posKey === "CM") {
+        posSummary["CM"].cantidad += 1;
+        posSummary["CM"].total   += row.resultado;
+      } else if (posSummary[posKey] !== undefined && posKey !== "CM") {
+        posSummary[posKey].cantidad += 1;
+        posSummary[posKey].total   += row.resultado;
+      } else if (isTsPos(posKey)) {
+        posSummary["TS"].cantidad += 1;
+        posSummary["TS"].total   += row.resultado;
+      }
+      accumulated += row.resultado;
+      if (accumulated > maxPositive) maxPositive = accumulated;
+      if (accumulated < maxNegative) maxNegative = accumulated;
+      accumulatedData.push({ ...row, acumulado: accumulated });
+    });
+
+    if (maxPositive === Number.NEGATIVE_INFINITY) maxPositive = 0;
+    if (maxNegative === Number.POSITIVE_INFINITY) maxNegative = 0;
+
+    // El cierre manual (CM) se excluye de las métricas de calidad: no es una salida
+    // algorítmica normal y distorsionaría las estadísticas.
+    const statsRows = rows.filter(r => r.pos.toUpperCase() !== 'CM');
+
+    const wins   = statsRows.filter(r => r.resultado > 0);
+    const losses = statsRows.filter(r => r.resultado < 0);
+    const n      = statsRows.length;
+
+    const winRate  = n > 0 ? (wins.length   / n) * 100 : 0;
+    const lossRate = n > 0 ? (losses.length / n) * 100 : 0;
+
+    const grossProfit = wins.reduce((s, r) => s + r.resultado, 0);
+    const grossLoss   = losses.reduce((s, r) => s + r.resultado, 0);
+
+    const avgWin  = wins.length   > 0 ? grossProfit / wins.length   : 0;
+    const avgLoss = losses.length > 0 ? grossLoss   / losses.length : 0;   // negativo
+
+    const largestWin  = wins.length   > 0 ? Math.max(...wins.map(r => r.resultado))   : 0;
+    const largestLoss = losses.length > 0 ? Math.min(...losses.map(r => r.resultado)) : 0;
+
+    const profitFactor = grossLoss !== 0 ? Math.abs(grossProfit / grossLoss) : null;
+    const rewardRisk   = avgLoss   !== 0 ? Math.abs(avgWin     / avgLoss)   : null;
+
+    // R-múltiplos y expectativa (solo trades con riesgo v1r > 0)
+    const validR = statsRows.filter(r => r.v1r > 0).map(r => r.resultado / r.v1r);
+    const avgR   = validR.length > 0 ? validR.reduce((s, r) => s + r, 0) / validR.length : null;
+    const bestR  = validR.length > 0 ? Math.max(...validR) : null;
+    const worstR = validR.length > 0 ? Math.min(...validR) : null;
+
+    const winRDecimal  = n > 0 ? wins.length   / n : 0;
+    const lossRDecimal = n > 0 ? losses.length / n : 0;
+    const winRValues   = validR.filter(r => r > 0);
+    const lossRValues  = validR.filter(r => r < 0);
+    const avgWinR  = winRValues.length  > 0 ? winRValues.reduce((s, r)  => s + r, 0) / winRValues.length  : 0;
+    const avgLossR = lossRValues.length > 0 ? lossRValues.reduce((s, r) => s + r, 0) / lossRValues.length : 0;
+    const expectancyR    = (winRDecimal * avgWinR) + (lossRDecimal * avgLossR);
+    const expectancyUSDT = n > 0 ? (grossProfit + grossLoss) / n : 0;
+
+    // Rachas máximas consecutivas de ganancias / pérdidas
+    let maxWinStreak = 0, maxLossStreak = 0, curWin = 0, curLoss = 0;
+    statsRows.forEach(r => {
+      if (r.resultado > 0) {
+        curWin++;  curLoss = 0;
+        if (curWin  > maxWinStreak)  maxWinStreak  = curWin;
+      } else if (r.resultado < 0) {
+        curLoss++; curWin  = 0;
+        if (curLoss > maxLossStreak) maxLossStreak = curLoss;
+      } else {
+        curWin = 0; curLoss = 0;
+      }
+    });
+
+    // Duración de cada trade (cierre - apertura)
+    const durations = statsRows
+      .map(r => {
+        const open  = parseTradeDate(r.timeOpen);
+        const close = parseTradeDate(r.timeClose);
+        if (!open || !close) return null;
+        const ms = close - open;
+        return ms > 0 ? ms : null;
+      })
+      .filter(d => d !== null);
+
+    const avgDurationMs = durations.length > 0 ? durations.reduce((s, d) => s + d, 0) / durations.length : 0;
+    const minDurationMs = durations.length > 0 ? Math.min(...durations) : 0;
+    const maxDurationMs = durations.length > 0 ? Math.max(...durations) : 0;
+
+    // Desglose por dirección (long / short)
+    const dirStats = trades => ({
+      count:   trades.length,
+      winRate: trades.length > 0 ? trades.filter(r => r.resultado > 0).length / trades.length * 100 : 0,
+      pnl:     trades.reduce((s, r) => s + r.resultado, 0),
+    });
+    const longStats  = dirStats(statsRows.filter(r => r.type.toUpperCase() === 'LONG'));
+    const shortStats = dirStats(statsRows.filter(r => r.type.toUpperCase() === 'SHORT'));
+
+    return {
+      posSummary, totalRegistros: rows.length, accumulatedData, maxPositive, maxNegative,
+      finalAccumulated: accumulated,
+      wins: wins.length, losses: losses.length, winRate, lossRate,
+      grossProfit, grossLoss, avgWin, avgLoss, largestWin, largestLoss,
+      profitFactor, rewardRisk,
+      avgR, bestR, worstR, expectancyR, expectancyUSDT,
+      maxWinStreak, maxLossStreak,
+      avgDurationMs, minDurationMs, maxDurationMs,
+      longStats, shortStats,
+    };
+  }
+
+  function renderAnalisisData(data) {
+    document.getElementById("cantidadTotal").textContent = data.totalRegistros;
+    document.getElementById("maxPositive").textContent = formatNumber(data.maxPositive);
+    document.getElementById("maxNegative").textContent = formatNumber(data.maxNegative);
+    document.getElementById("finalAccumulated").textContent = formatNumber(data.finalAccumulated);
+    applyValueClass(document.getElementById("maxPositive"), data.maxPositive);
+    applyValueClass(document.getElementById("maxNegative"), data.maxNegative);
+    applyValueClass(document.getElementById("finalAccumulated"), data.finalAccumulated);
+
+    const posBody = document.getElementById("posTableBody");
+    posBody.innerHTML = "";
+    let tCant = 0, tTot = 0;
+    [...POS_FIXED, "TS", "CM"].forEach(key => {
+      const { cantidad, total } = data.posSummary[key];
+      tCant += cantidad; tTot += total;
+      posBody.innerHTML += `<tr><td>${key}</td><td>${cantidad}</td><td class="${getClassByValue(total)}">${formatNumber(total)}</td></tr>`;
+    });
+    document.getElementById("footCantidad").textContent = tCant;
+    document.getElementById("footTotal").textContent = formatNumber(tTot);
+    document.getElementById("footTotal").className = getClassByValue(tTot);
+
+    const accBody = document.querySelector("#accumulatedTable tbody");
+    accBody.innerHTML = "";
+    // Se muestra al revés: último cierre arriba (los cálculos siguen usando data.accumulatedData en orden cronológico).
+    [...data.accumulatedData].reverse().forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.id_pos}</td>
+        <td>${item.type}</td>
+        <td>${item.pos}</td>
+        <td>${item.timeOpen}</td>
+        <td>${item.timeClose}</td>
+        <td>${item.pe}</td>
+        <td>${item.ps}</td>
+        <td>${formatNumber(item.v1r)}</td>
+        <td class="${getClassByValue(item.resultado)}">${formatNumber(item.resultado)}</td>
+        <td class="${getClassByValue(item.acumulado)}">${formatNumber(item.acumulado)}</td>
+        <td><button class="mostrar-trade_sequence-btn" onclick="mostrarModaltrade_sequence('${item.trade_sequence || ''}')">View</button></td>
+      `;
+      accBody.appendChild(tr);
+    });
+
+    renderStats(data);
+    drawChart(data.accumulatedData);
+  }
+
+  // Rellena las tarjetas de estadísticas (Trade Quality y Patterns)
+  function renderStats(d) {
+    const pct = v => v !== null ? v.toFixed(1) + '%' : '—';
+    const usd = v => v !== null ? formatNumber(v) : '—';
+    const r   = v => v !== null ? v.toFixed(3) + ' R' : '—';
+    const x   = v => v !== null ? v.toFixed(2) + 'x' : '—';
+
+    // Win / Loss
+    set('stat-winrate',      pct(d.winRate),     d.winRate);
+    set('stat-lossrate',     pct(d.lossRate),    -d.lossRate);
+    setText('stat-wins',     d.wins);
+    setText('stat-losses',   d.losses);
+    set('stat-largest-win',  usd(d.largestWin),  d.largestWin);
+    set('stat-largest-loss', usd(d.largestLoss), d.largestLoss);
+
+    // Profit Factor
+    const pfText = d.profitFactor === null ? '∞' : d.profitFactor.toFixed(2);
+    set('stat-pf', pfText, d.profitFactor === null ? 1 : d.profitFactor - 1);
+    set('stat-gross-profit', usd(d.grossProfit), d.grossProfit);
+    set('stat-gross-loss',   usd(d.grossLoss),   d.grossLoss);
+    set('stat-avg-win',      usd(d.avgWin),      d.avgWin);
+    set('stat-avg-loss',     usd(d.avgLoss),     d.avgLoss);
+    set('stat-rr', x(d.rewardRisk), d.rewardRisk !== null ? d.rewardRisk - 1 : 0);
+
+    // Expectancy & R-Multiple
+    set('stat-exp-usdt', usd(d.expectancyUSDT), d.expectancyUSDT);
+    set('stat-exp-r',    r(d.expectancyR),      d.expectancyR);
+    set('stat-avg-r',    r(d.avgR),             d.avgR);
+    set('stat-best-r',   r(d.bestR),            d.bestR);
+    set('stat-worst-r',  r(d.worstR),           d.worstR);
+
+    // Streaks
+    setText('stat-win-streak',  d.maxWinStreak);
+    setText('stat-loss-streak', d.maxLossStreak);
+
+    // Trade Duration
+    setText('stat-avg-duration', formatDuration(d.avgDurationMs));
+    setText('stat-min-duration', formatDuration(d.minDurationMs));
+    setText('stat-max-duration', formatDuration(d.maxDurationMs));
+
+    // By Direction
+    document.getElementById('tbody-direction').innerHTML = [
+      ['Long',  d.longStats],
+      ['Short', d.shortStats],
+    ].map(([label, s]) => `
+      <tr>
+        <td class="td-label">${label}</td>
+        <td>${s.count}</td>
+        <td class="${s.winRate >= 50 ? 'positive' : 'negative'}">${s.winRate.toFixed(1)}%</td>
+        <td class="${getClassByValue(s.pnl)}">${formatNumber(s.pnl)}</td>
+      </tr>`).join('');
+  }
+
+  function set(id, text, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className   = 'value ' + getClassByValue(value);
+  }
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function drawChart(accumulatedData) {
+    const width = canvas.width, height = canvas.height, padding = 50;
+    ctx.clearRect(0, 0, width, height);
+    if (!accumulatedData.length) return;
+
+    const values = accumulatedData.map(d => d.acumulado);
+    const minVal = Math.min(...values, 0);
+    const maxVal = Math.max(...values, 0);
+    let range = maxVal - minVal;
+    if (range === 0) range = 1;
+
+    const chartWidth = width - padding * 2, chartHeight = height - padding * 2;
+    const xStep = accumulatedData.length > 1 ? chartWidth / (accumulatedData.length - 1) : chartWidth;
+    const getX = (i) => padding + i * xStep;
+    const getY = (val) => padding + ((maxVal - val) / range) * chartHeight;
+
+    ctx.strokeStyle = "#e5e7eb"; ctx.fillStyle = "#6b7280"; ctx.font = "12px Arial";
+    for (let i = 0; i <= 5; i++) {
+      const y = padding + (chartHeight / 5) * i;
+      ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(width - padding, y); ctx.stroke();
+      ctx.fillText(formatNumber(maxVal - ((maxVal - minVal) / 5) * i), 8, y + 4);
+    }
+
+    const zeroY = getY(0);
+    ctx.strokeStyle = "#9ca3af"; ctx.beginPath(); ctx.moveTo(padding, zeroY); ctx.lineTo(width - padding, zeroY); ctx.stroke();
+
+    ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = "#2563eb";
+    accumulatedData.forEach((p, i) => { i === 0 ? ctx.moveTo(getX(i), getY(p.acumulado)) : ctx.lineTo(getX(i), getY(p.acumulado)); });
+    ctx.stroke();
+
+    if (accumulatedData.length <= 150) {
+      ctx.fillStyle = "#2563eb";
+      accumulatedData.forEach((p, i) => {
+        ctx.beginPath(); ctx.arc(getX(i), getY(p.acumulado), 2.5, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+  }
+
+  function formatNumber(value) { return Number(value).toFixed(2); }
+  function getClassByValue(value) { return value > 0 ? "positive" : (value < 0 ? "negative" : "neutral"); }
+  function applyValueClass(el, value) {
+    el.classList.remove("positive", "negative", "neutral");
+    el.classList.add(getClassByValue(value));
+  }
+
+  function mostrarModaltrade_sequence(texto) {
+    document.getElementById('modaltrade_sequenceText').textContent = texto || '(empty)';
+    document.getElementById('modal-trade_sequence-bg').classList.add('active');
+  }
+  document.getElementById('modaltrade_sequenceCloseBtn').onclick = () => document.getElementById('modal-trade_sequence-bg').classList.remove('active');
+  document.getElementById('modal-trade_sequence-bg').onclick = function(e) { if(e.target===this) this.classList.remove('active'); };
+</script>
+
+</body>
+</html>

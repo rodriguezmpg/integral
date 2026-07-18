@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+  <title>Cashflow</title>
+  <style>
+    /* Campos del formulario (analytics.css no trae estilos de inputs/select/textarea). */
+    .form-grid { display: flex; flex-direction: column; gap: 14px; max-width: 440px; }
+    .field-label {
+      display: flex; flex-direction: column; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+    }
+    .field-input, .field-select, .field-textarea {
+      padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; font-family: inherit; color: var(--text); background: #fff; width: 100%;
+    }
+    .field-textarea { resize: vertical; min-height: 64px; }
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .field-note { font-size: 12px; color: var(--muted); }
+    .btn-green {
+      padding: 9px 18px; border: none; border-radius: 6px;
+      background: var(--green); color: #fff; font-size: 14px; font-weight: bold;
+      cursor: pointer; align-self: flex-start;
+    }
+    .btn-green:hover { filter: brightness(1.05); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="page-title">CASHFLOW</div>
+
+  <!-- ── Alta de movimiento ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">New entry</div>
+    <div class="form-grid">
+      <label class="field-label">Valor
+        <input type="text" id="cf-value" class="field-input" placeholder="0.00" autocomplete="off">
+      </label>
+      <label class="field-label">Exchange
+        <select id="cf-exchange" class="field-select">
+          <option value="BINANCE">BINANCE</option>
+          <option value="CTRADER">CTRADER</option>
+        </select>
+      </label>
+      <label class="field-label">Comentarios
+        <textarea id="cf-comments" class="field-textarea" placeholder="Opcional..."></textarea>
+      </label>
+      <div class="field-note">El datetime se registra automáticamente en hora UTC al guardar.</div>
+      <button type="button" id="cf-submit" class="btn-green">Add</button>
+      <div class="message" id="cf-message"></div>
+    </div>
+  </div>
+
+  <!-- ── Historial (estilo Trade History) ───────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Cashflow History</div>
+    <input type="text" id="cf-search" class="search-box" placeholder="Search exchange / comment..." />
+    <div class="tabla-csv-container">
+      <table class="tabla-csv" id="cf-table">
+        <thead>
+          <tr>
+            <th>Datetime (UTC)</th>
+            <th>Exchange</th>
+            <th>Value</th>
+            <th>Comments</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const valueEl    = document.getElementById("cf-value");
+  const exchangeEl = document.getElementById("cf-exchange");
+  const commentsEl = document.getElementById("cf-comments");
+  const submitBtn  = document.getElementById("cf-submit");
+  const messageEl  = document.getElementById("cf-message");
+  const searchEl   = document.getElementById("cf-search");
+  const tbody      = document.querySelector("#cf-table tbody");
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function formatNumber(n) {
+    const v = parseFloat(n);
+    return isNaN(v) ? '—' : v.toFixed(2);
+  }
+  function classByValue(n) {
+    const v = parseFloat(n);
+    return v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral';
+  }
+
+  // Control de separador decimal: la coma SIEMPRE se vuelve punto (todas, no solo la primera),
+  // y se descartan caracteres que no sean dígito, punto o signo. Sirve para tecleo y pegado.
+  function forzarPuntoDecimal(el) {
+    el.addEventListener('input', function () {
+      const pos = this.selectionStart;                 // recuerda el cursor
+      const antes = this.value;
+      this.value = antes.replace(/,/g, '.')            // coma -> punto (global)
+                        .replace(/[^0-9.\-]/g, '');    // saca lo que no sea número/punto/signo
+      // Reajusta el cursor si la limpieza acortó el texto (ej. se sacó un caracter inválido).
+      const delta = antes.length - this.value.length;
+      try { this.setSelectionRange(pos - delta, pos - delta); } catch (e) {}
+    });
+  }
+  forzarPuntoDecimal(valueEl);
+  valueEl.addEventListener('keydown', e => { if (e.key === 'Enter') enviar(); });
+
+  function mostrarMensaje(texto, tipo) {
+    messageEl.textContent = texto;
+    messageEl.className    = 'message ' + (tipo || '');
+  }
+
+  function enviar() {
+    const value = valueEl.value.trim().replace(',', '.');
+    if (value === '' || isNaN(parseFloat(value))) {
+      mostrarMensaje('Ingresá un valor numérico.', 'error');
+      return;
+    }
+    const body = new URLSearchParams({
+      value:    value,
+      exchange: exchangeEl.value,
+      comments: commentsEl.value.trim()
+    });
+
+    submitBtn.disabled = true;
+    fetch('/cashflow_add', { method: 'POST', body })
+      .then(r => r.json().then(j => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (!ok) { mostrarMensaje(j.error || 'Error al guardar.', 'error'); return; }
+        mostrarMensaje('Movimiento guardado.', 'success');
+        valueEl.value = '';
+        commentsEl.value = '';
+        cargarCashflow();
+      })
+      .catch(() => mostrarMensaje('Error de red.', 'error'))
+      .finally(() => { submitBtn.disabled = false; });
+  }
+  submitBtn.addEventListener('click', enviar);
+
+  function cargarCashflow() {
+    fetch('/cashflow_data')
+      .then(r => r.json())
+      .then(filas => {
+        // filas: [datetime, exchange, value, comments] ya en orden pk DESC (último arriba).
+        tbody.innerHTML = filas.map(f => {
+          const [dt, ex, val, com] = f;
+          return `<tr data-search="${escapeHtml(String(ex).toLowerCase() + ' ' + String(com).toLowerCase())}">
+            <td>${escapeHtml(dt)}</td>
+            <td>${escapeHtml(ex)}</td>
+            <td class="${classByValue(val)}">${formatNumber(val)}</td>
+            <td>${escapeHtml(com)}</td>
+          </tr>`;
+        }).join('');
+      })
+      .catch(() => { tbody.innerHTML = ''; });
+  }
+
+  searchEl.addEventListener('input', function () {
+    const filtro = this.value.trim().toLowerCase();
+    tbody.querySelectorAll('tr').forEach(tr => {
+      tr.style.display = (!filtro || tr.dataset.search.includes(filtro)) ? '' : 'none';
+    });
+  });
+
+  cargarCashflow();
+</script>
+
+</body>
+</html>

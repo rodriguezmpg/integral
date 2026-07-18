@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main_loop.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+</head>
+<body>
+
+<div class="container">
+
+    <div class="page-title" id="titulo"></div>
+
+    <!-- LAYOUT PRINCIPAL -->
+    <div class="top-grid">
+
+        <!-- COL IZQUIERDA: Información general + Cierre -->
+        <div class="col-left">
+            <div class="card">
+                <div class="card-title">General Info</div>
+                <table class="tablafija">
+                    <tbody>
+                        <tr>
+                            <td>Current Price</td>
+                            <td><span class="current_price"></span></td>
+                            <td class="td-label">V1R</td>
+                            <td><span class="ps_risk_usdt"></span></td>
+                        </tr>
+                        <tr>
+                            <td>PE</td>
+                            <td><span class="fd_r0"></span></td>
+                            <td class="td-label">Type</td>
+                            <td><span class="fd_type_pos"></span></td>
+                        </tr>
+                        <tr>
+                            <td>QtymVar</td>
+                            <td><span class="fd_Qty_mVar"></span></td>
+                            <td class="td-label">Qty min</td>
+                            <td><span class="fd_Qty_min"></span></td>
+                        </tr>
+                        <tr>
+                            <td>Start Date</td><td colspan="3"><span class="fd_open_time"></span></td>
+                        </tr>
+                        <tr>
+                            <td>Status</td><td colspan="3"><span class="fd_validation_message"></span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Close</div>
+                <table class="tablafija">
+                    <tbody>
+                        <tr>
+                            <td>BE Stage</td>
+                            <td><span class="rt_breakeven_stage"></span></td>
+                        </tr>
+                        <tr>
+                            <td>Trigger</td>
+                            <td><span class="rt_r_ts"></span></td>
+                        </tr>
+                        <tr>
+                            <td>Current Stop</td>
+                            <td><span class="rt_r_1"></span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Margin de la posición, broker-aware (lo llena renderMargin según tickerBroker):
+                 Binance -> Liq price/Maint margin/Leverage (rt); cTrader -> Margin level/Used margin/Free margin. -->
+            <div class="card">
+                <div class="card-title">Margin</div>
+                <table class="tablafija">
+                    <tbody id="margin-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Market Hours</div>
+                <div id="market-hours"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Comment</div>
+                <!-- Vista: texto + Edit. Edición: textarea + Save. Guarda en ps.comment (memoria) vía /comment_save. -->
+                <div id="comment-view">
+                    <div id="comment-text" class="comment-text"></div>
+                    <button type="button" class="btn-comment" onclick="editarComentario()">Edit</button>
+                </div>
+                <div id="comment-edit" style="display:none">
+                    <textarea id="comment-input" style="width:100%;box-sizing:border-box;resize:vertical;min-height:70px;margin-bottom:8px"></textarea>
+                    <button type="button" class="btn-comment" onclick="guardarComentario()">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- COL DERECHA: Contabilidad + Grilla arriba, Gráfico debajo -->
+        <div class="col-right">
+        <div class="right-top">
+
+        <div class="card">
+            <div class="card-title">Accounting</div>
+            <table class="tablafija">
+                <tbody>
+                    <tr>
+                        <td>Current Balance</td>
+                        <td><span class="rt_balance"></span></td>
+                        <td class="td-label">PnL</td>
+                        <td><span class="rt_unrealized_pnl"></span></td>
+                    </tr>
+                    <tr>
+                        <td>Equity</td>
+                        <td><span class="rt_equity"></span></td>
+                        <td class="td-label"><span id="ff-swap-label">&Sigma; Founding Fee</span></td>
+                        <td><span class="rt_ff_swap"></span></td>
+                    </tr>
+                    <tr>
+                        <td>%</td>
+                        <td><span class="rt_position_pct"></span></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button class="btn-gray" onclick="window.open('/analytics_symbol?ticker=' + ticker, '_blank')">Symbol Analysis</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Grid</div>
+            <table class="tablafija">
+                <tbody>
+                    <tr>
+                        <td>R</td>
+                        <td>Value</td>
+                        <td>Dist.</td>
+                        <td>Qty</td>
+                        <td>PnL</td>
+                    </tr>
+                    <tr>
+                        <td>-1R</td>
+                        <td><span class="fd_r_1"></span></td>
+                        <td><span class="fd_perc1_r"></span></td>
+                        <td><span class="fd_Qty_mVar"></span></td>
+                        <td><span class="fd_pnl1_r"></span></td>
+                    </tr>
+                    <tr>
+                        <td>R0</td>
+                        <td><span class="fd_r0"></span></td>
+                        <td><span class=""></span></td>
+                        <td><span class="fd_Qty_mVar"></span></td>
+                        <td><span class=""></span></td>
+                    </tr>
+                    <tr>
+                        <td>R1</td>
+                        <td><span class="fd_r1"></span></td>
+                        <td><span class="fd_perc1r"></span></td>
+                        <td><span class="fd_Qty_r1"></span></td>
+                        <td><span class="fd_pnl1r"></span></td>
+                    </tr>
+                    <tr>
+                        <td>R2</td>
+                        <td><span class="fd_r2"></span></td>
+                        <td><span class="fd_perc2r"></span></td>
+                        <td><span class="fd_Qty_r2"></span></td>
+                        <td><span class="fd_pnl2r"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        </div><!-- /right-top -->
+
+        <!-- GRÁFICO embebido -->
+        <div class="card chart-card">
+            <div class="chart-card-header">
+                <div class="card-title" style="margin-bottom:0;">Chart</div>
+                <a id="btn-ampliar" href="#" target="_blank" class="btn-gray btn-ampliar">
+                    ↗ Expand
+                </a>
+            </div>
+            <div id="chart-embed">
+                <div id="chart-loading">
+                    <div class="spinner-sm"></div>
+                    Loading chart...
+                </div>
+            </div>
+        </div>
+        </div><!-- /col-right -->
+
+    </div>
+
+    <!-- TABLA CSV MOVIMIENTOS -->
+    <div class="card">
+        <div class="movimientos-header">
+            <div class="card-title" style="margin-bottom:0">Movements</div>
+            <label class="mov-toggle">
+                <input type="checkbox" id="toggle-ff" onchange="toggleFF(this)">
+                <span id="toggle-ff-label">Show Swap</span>
+            </label>
+        </div>
+        <div class="tabla-csv-container">
+            <table class="tabla-csv" id="tablaCsv"></table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+    const ticker = (new URLSearchParams(window.location.search)).get('ticker') || 'ethusdt';
+    document.getElementById("titulo").textContent = ticker.toUpperCase();
+    document.title = `${ticker.toUpperCase()} – Live Position Monitor`;
+
+    // Broker del ticker (lo setea cargarDatosEstaticos desde fd_type_ins). Define qué tabla
+    // muestra el cuadro Margin: Binance -> liq price/maint/leverage; cTrader -> margin level/used/free.
+    let tickerBroker = 'binance';
+    let percSpread = null;   // fd.perc_spread: peaje del spread de apertura (% de 1R), para el recuadro Margin (solo cTrader)
+
+    function cargarDatosEstaticos() {
+        $.getJSON(`/dat_fixed?ticker=${ticker}`, function(data) {
+
+            $('.fd_open_time').text(data.fd_open_time);
+            $('.fd_Qty_min').text(data.fd_Qty_min);
+            $('.ps_risk_usdt').text(data.ps_risk_usdt);
+            $('.fd_r_1').text(data.fd_r_1);
+            $('.fd_r0').text(data.fd_r0);
+            $('.fd_r1').text(data.fd_r1);
+            $('.fd_r2').text(data.fd_r2);
+            $('.fd_perc1_r').text(data.fd_perc1_r + '%');
+            $('.fd_perc1r').text(data.fd_perc1r + '%');
+            $('.fd_perc2r').text(data.fd_perc2r + '%');
+            $('.fd_type_pos').text(data.fd_type_pos);
+            tickerBroker = (data.fd_type_ins === 'CRYPTO') ? 'binance' : 'ctrader';   // define la tabla del cuadro Margin
+            percSpread = data.fd_perc_spread;   // spread de apertura (% de 1R); se muestra en el recuadro Margin de cTrader
+
+            $('.fd_Qty_mVar').text(data.fd_Qty_mVar);
+            $('.fd_Qty_r1').text(data.fd_Qty_r1);
+            $('.fd_Qty_r2').text(data.fd_Qty_r2);
+            $('.fd_Qty_ts').text(data.fd_Qty_ts);
+
+            $('.fd_pnl1_r').text(data.fd_pnl1_r);
+            $('.fd_pnl1r').text(data.fd_pnl1r);
+            $('.fd_pnl2r').text(data.fd_pnl2r);
+
+            $('.fd_validation_message').text(data.fd_validation_message);
+
+            // Comentario: solo en modo vista (no pisar la edición si el usuario la tiene abierta).
+            // Guardamos el valor crudo en data-raw para que el textarea no herede el placeholder.
+            if ($('#comment-edit').is(':hidden')) {
+                const c = data.ps_comment || '';
+                $('#comment-text').text(c || '(no comment)').attr('data-raw', c);
+            }
+
+            // ── líneas del gráfico embebido ──
+            if (embedSeries) addEmbedPriceLines();
+
+            // ── link ampliar con parámetros de posición ──
+            const params = new URLSearchParams({
+                entry: data.fd_r0,
+                tp1:   data.fd_r1,
+                tp2:   data.fd_r2,
+                sl:    $('.rt_r_1').text() || '',
+                ts:    $('.rt_r_ts').text() || ''
+            });
+            document.getElementById('btn-ampliar').href = `/chart/${ticker.toUpperCase()}?${params}`;
+        });
+    }
+
+    // Renderiza el recuadro de horario de mercado (datos de /market_hours -> _format_schedule).
+    let mhRetries = 0;   // reintentos rápidos mientras el schedule se carga async (lazy)
+    function loadMarketHours() {
+        $.getJSON(`/market_hours?ticker=${ticker}`, function(data) {
+            // Tipo del símbolo (mismo dato que el recuadro de horarios): sirve para el label y para ocultar commission.
+            const isCrypto = (data.status === 'crypto');
+            const ffLabel = document.getElementById('toggle-ff-label');
+            if (ffLabel) ffLabel.textContent = isCrypto ? 'Show Founding Fee' : 'Show Swap';
+            // Forex/CFD no tienen commission -> ocultamos esa columna en la tabla de Movimientos.
+            document.getElementById('tablaCsv').classList.toggle('hide-commission', !isCrypto);
+            const cont = document.getElementById('market-hours');
+            cont.innerHTML = '';
+            // Forex/CFD sin cachear todavía: el backend lo pidió, reintentamos enseguida.
+            if (data.status === 'loading') {
+                cont.innerHTML = '<div class="mh-status">Loading…</div>';
+                if (mhRetries < 5) { mhRetries++; setTimeout(loadMarketHours, 2000); }
+                return;
+            }
+            mhRetries = 0;
+            // Línea de estado: bolita verde/roja + "Market Open"/"Market Closed" (estilo etiqueta, como "Posicion BE").
+            const dotClass = data.is_open ? 'mh-dot' : 'mh-dot mh-dot-red';
+            const label    = data.is_open ? 'Market Open' : 'Market Closed';
+            const status = document.createElement('div');
+            status.className = 'mh-status';
+            status.innerHTML = `<span class="${dotClass}"></span>${label}`;
+            cont.appendChild(status);
+            // Crypto es 24/7: solo la línea de estado, sin filas de horario.
+            if (data.status === 'crypto') return;
+            data.rows.forEach((r, i) => {
+                // El cartel "Opens in ..." va en la fila que abre a continuación (solo si está cerrado).
+                const opens = (!data.is_open && i === data.next_open_idx)
+                    ? `<span class="mh-opens">(Opens in ${data.opens_in})</span>` : '';
+                const div = document.createElement('div');
+                div.className = 'mh-row';
+                div.innerHTML = `<span>${r.start}</span><span class="mh-sep">–</span><span>${r.end}</span>${opens}`;
+                cont.appendChild(div);
+            });
+        });
+    }
+
+    // Pasa el recuadro de comentario a modo edición, precargando el texto actual.
+    function editarComentario() {
+        $('#comment-input').val($('#comment-text').attr('data-raw') || '');
+        $('#comment-view').hide();
+        $('#comment-edit').show();
+    }
+    // Guarda el comentario en memoria (ps.comment) vía /comment_save y vuelve a modo vista.
+    function guardarComentario() {
+        const comment = $('#comment-input').val();
+        $.post('/comment_save', { ticker: ticker, comment: comment }, function() {
+            $('#comment-text').text(comment || '(no comment)').attr('data-raw', comment);
+            $('#comment-edit').hide();
+            $('#comment-view').show();
+        });
+    }
+
+    $(document).ready(function() {
+        cargarDatosEstaticos();
+        loadMarketHours();
+    });
+    setInterval(loadMarketHours, 60000);   // refresca el "Opens in" cada minuto
+
+    function actualizarPrecio() {
+        $.getJSON(`/precio?ticker=${ticker}`, function(data) {
+            $('.current_price').text(data.current_price);
+        });
+    }
+    setInterval(actualizarPrecio, 1000);
+
+    // Colorea un valor numérico según su signo (solo el color): verde si es positivo, rojo si es negativo.
+    function paintBySign(selector, value) {
+        const num = parseFloat(String(value).replace('%', ''));
+        $(selector)
+            .text(value)
+            .removeClass('positive negative')
+            .addClass(!isNaN(num) && num > 0 ? 'positive' : (!isNaN(num) && num < 0 ? 'negative' : ''));
+    }
+
+    function actualizarDatos() {
+        $.getJSON(`/datos?ticker=${ticker}`, function(data) {
+            $('.rt_breakeven_stage').text(data.rt_breakeven_stage);
+            $('.rt_r_ts').text(data.rt_r_ts);
+            $('.rt_r_1').text(data.rt_r_1);
+            paintBySign('.rt_balance', data.rt_balance);
+            paintBySign('.rt_position_pct', data.rt_position_pct);
+            paintBySign('.rt_equity', Math.round(data.rt_equity * 10000) / 10000);
+            paintBySign('.rt_unrealized_pnl', data.rt_unrealized_pnl);
+            // Acumulado de funding fee (Binance) o swap (cTrader) según el broker del ticker.
+            const isCt = (tickerBroker === 'ctrader');
+            document.getElementById('ff-swap-label').innerHTML = isCt ? '&Sigma; Swap' : '&Sigma; Founding Fee';
+            const ffSwapVal = isCt ? data.rt_swap : data.rt_funding_fee;
+            paintBySign('.rt_ff_swap', Math.round((ffSwapVal || 0) * 10000) / 10000);
+            // Cuadro Margin broker-aware. cTrader necesita los totales de cuenta (margin level/free) que
+            // vienen en /datos_analytics; Binance se arma solo con rt.
+            if (tickerBroker === 'ctrader') {
+                $.getJSON('/datos_analytics', gl => renderMargin(data, gl));
+            } else {
+                renderMargin(data, null);
+            }
+        });
+    }
+    setInterval(actualizarDatos, 5000);
+    actualizarDatos();
+
+    // Arma el cuadro Margin según el broker del ticker. rt = /datos (por posición); gl = /datos_analytics
+    // (totales de cuenta, solo para cTrader). Binance: liq price/maint/leverage. cTrader: margin level/used/free.
+    function renderMargin(rt, gl) {
+        let rows;
+        if (tickerBroker === 'ctrader') {
+            const wallet = (gl && gl.gl_wallet_balance_ctrader) || 0;
+            const equity = wallet + ((gl && gl.gl_unrealized_pnl_ctrader) || 0);   // equity = balance + uPnL
+            const used   = (gl && gl.gl_used_margin_ctrader) || 0;
+            rows = [
+                ['Margin level', used > 0 ? (equity / used * 100).toFixed(2) + '%' : '—'],  // invertido: bajo = riesgo de stop-out
+                ['Used margin',  Number(rt.rt_used_margin).toFixed(2)],
+                ['Free margin',  (equity - used).toFixed(2)],
+                ['Spread (open)', (percSpread != null && percSpread > 0) ? Number(percSpread).toFixed(1) + '% de 1R' : '—'],
+            ];
+        } else {
+            rows = [
+                ['Liq. Price',    Number(rt.rt_liquid_price) > 0 ? rt.rt_liquid_price : '—'],
+                ['Maint. Margin', Number(rt.rt_maint_margin).toFixed(2)],
+                ['Leverage',      rt.rt_leverage ? Math.round(rt.rt_leverage) + 'x' : '—'],   // testnet reporta 0 (dato roto); en prod viene bien
+            ];
+        }
+        document.getElementById('margin-body').innerHTML =
+            rows.map(([l, v]) => `<tr><td>${l}</td><td>${v}</td></tr>`).join('');
+    }
+
+</script>
+
+<script>
+    const headers = [
+        'ID Order', 'Type', 'Pos', 'PE', 'SL', 'R1', 'R2',
+        'Qty', 'V1R', 'PnL', 'Balance', 'Commission', 'Time'
+    ];
+
+    function renderTable(data) {
+        const tabla = document.getElementById('tablaCsv');
+        tabla.innerHTML = '';
+
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
+        headers.forEach(h => {
+            const th = document.createElement('th');
+            th.textContent = h;
+            if (h === 'commission') th.classList.add('col-commission');
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        tabla.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        data.forEach((row) => {
+            if (!Array.isArray(row)) return;
+            const tr = document.createElement('tr');
+            // Filas de Founding Fee / Swap: se cargan igual pero arrancan ocultas (se muestran con el checkbox).
+            const pos = String(row[2] ?? '').toUpperCase();
+            if (pos === 'FF' || pos === 'SWAP') tr.classList.add('ff-row');
+            for (let i = 0; i < headers.length; i++) {
+                const td = document.createElement('td');
+                td.textContent = (row[i] ?? '');
+                if (headers[i] === 'commission') td.classList.add('col-commission');
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        });
+        tabla.appendChild(tbody);
+    }
+
+    function cargarCSV() {
+        const url = `/movimientos?ticker=${encodeURIComponent(ticker)}`;
+        $.getJSON(url, function(filas) {
+            if (!Array.isArray(filas)) {
+                console.error('Unexpected format from /movimientos:', filas);
+                document.getElementById('tablaCsv').innerHTML =
+                    `<tr><td colspan="${headers.length}" style="color:red;">Invalid data format</td></tr>`;
+                return;
+            }
+            renderTable(filas);
+        }).fail(function(error) {
+            console.error('Error loading movements:', error);
+            document.getElementById('tablaCsv').innerHTML =
+                `<tr><td colspan="${headers.length}" style="color:red;">Error loading movements from DB</td></tr>`;
+        });
+    }
+
+    // Muestra/oculta las filas de Founding Fee / Swap según el checkbox.
+    function toggleFF(cb) {
+        document.getElementById('tablaCsv').classList.toggle('show-ff', cb.checked);
+    }
+
+    cargarCSV();
+</script>
+
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+  let embedChart, embedSeries;
+
+  function initEmbedChart() {
+    const container = document.getElementById('chart-embed');
+    embedChart = LightweightCharts.createChart(container, {
+      autoSize: true,
+      layout: {
+        background: { color: '#ffffff' },
+        textColor: '#888888',
+        fontFamily: 'Arial, sans-serif',
+      },
+      grid: {
+        vertLines: { color: '#e8e8e8' },
+        horzLines: { color: '#e8e8e8' },
+      },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: { borderColor: '#d0d0d0' },
+      timeScale: { borderColor: '#d0d0d0', timeVisible: true, secondsVisible: false },
+      handleScroll: true,
+      handleScale: true,
+    });
+
+    embedSeries = embedChart.addCandlestickSeries({
+      upColor:         '#ffffff',
+      downColor:       '#000000',
+      borderUpColor:   '#000000',
+      borderDownColor: '#000000',
+      wickUpColor:     '#000000',
+      wickDownColor:   '#000000',
+    });
+
+
+  }
+
+  function addEmbedPriceLines() {
+    function addLine(price, color, title) {
+      const val = parseFloat(price);
+      if (!val || val === 0) return;
+      embedSeries.createPriceLine({
+        price: val, color, lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true, title,
+      });
+    }
+    addLine($('.fd_r0').text(),   '#000000', 'Entry');
+    addLine($('.fd_r1').text(),   '#16a34a', 'TP1');
+    addLine($('.fd_r2').text(),   '#16a34a', 'TP2');
+    addLine($('.rt_r_ts').text(), '#4ade80', 'TS');
+    addLine($('.rt_r_1').text(),  '#ef4444', 'SL');
+  }
+
+  async function loadEmbedChart() {
+    try {
+      const res  = await fetch(`/api/chart/${ticker.toUpperCase()}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      embedSeries.setData(data.candles.map(c => ({
+        time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
+      })));
+      embedChart.timeScale().fitContent();
+      document.getElementById('chart-loading').style.display = 'none';
+    } catch(e) {
+      document.getElementById('chart-loading').innerHTML = `<span style="color:red">Error: ${e.message}</span>`;
+    }
+  }
+
+  async function refreshEmbedCandle() {
+    try {
+      const res  = await fetch(`/api/chart/${ticker.toUpperCase()}`);
+      const data = await res.json();
+      if (data.error) return;
+      const last = data.candles[data.candles.length - 1];
+      embedSeries.update({ time: last.time, open: last.open, high: last.high, low: last.low, close: last.close });
+    } catch(e) { console.error('Error refresh embed chart:', e); }
+  }
+
+  initEmbedChart();
+  loadEmbedChart();
+  setInterval(refreshEmbedCandle, 30_000);
+</script>
+
+</body>
+</html>

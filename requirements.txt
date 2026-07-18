@@ -1,0 +1,14 @@
+Flask[async]==2.3.3
+python-binance==1.0.29
+python-dotenv==1.1.1
+requests==2.32.3
+websockets==13.1
+psycopg2-binary==2.9.12
+ctrader-open-api==0.9.2
+
+# Se importa directo (from twisted.internet import reactor); ctrader-open-api ya lo trae, pero lo fijamos explícito.
+Twisted==24.3.0
+# Base de datos de timezones para ZoneInfo (horarios de mercado); necesaria en imágenes/entornos sin tzdata del SO.
+tzdata
+# Runtime de protobuf de los mensajes _pb2 de cTrader; fijado para que un fresh install no traiga un protobuf 4.x/5.x incompatible.
+protobuf==3.20.1

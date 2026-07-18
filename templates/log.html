@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log del sistema</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/log.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+ <style>
+   
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <div class="dot"></div>
+      <div>
+        <h1>Log del sistema</h1>
+        <div class="subtitle">Ultimas 1000 líneas &nbsp;·&nbsp; UTC</div>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn-clear" href="/log/limpiar" onclick="return confirm('¿Limpiar log?')">🗑 Limpiar</a>
+    </div>
+  </div>
+
+  <div class="log-container">
+    <div class="log-inner" id="logbox">
+      {% if lineas %}
+        {% for linea in lineas %}
+          {% set parts = linea.split(' [') %}
+          {% if parts|length >= 2 %}
+            {% set time_part = parts[0] %}
+            {% set rest = '[' + parts[1:] | join(' [') %}
+            {% set level_end = rest.find(']') %}
+            {% set level = rest[1:level_end] if level_end > 0 else '' %}
+            {% set msg = rest[level_end+2:] if level_end > 0 else rest %}
+            <div class="log-line">
+              <span class="log-time">{{ time_part }}</span>
+              <span class="log-level level-{{ level }}">{{ level }}</span>
+              <span class="log-msg">{{ msg }}</span>
+            </div>
+          {% else %}
+            <div class="log-line"><span class="log-msg">{{ linea }}</span></div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="empty">📭 Log vacío</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Scroll al final al cargar
+    const box = document.getElementById('logbox');
+    box.scrollTop = box.scrollHeight;
+  </script>
+
+</body>
+</html>

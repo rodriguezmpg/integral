@@ -1,0 +1,28 @@
+{
+  "crypto": [
+    "ethusdt",
+    "bnbusdt",
+    "solusdt",
+    "xrpusdt",
+    "avaxusdt",
+    "tonusdt",
+    "xlmusdt"
+  ],
+  "forex": [
+    "EURUSD",
+    "AUDJPY",
+    "CADJPY",
+    "USDPLN",
+    "USDRON",
+    "NZDUSD",
+    "USDKES",
+    "NZDHUF"
+  ],
+  "cfd": [
+    "BRENTOIL-PERP",
+    "AUS200",
+    "BTCUSD",
+    "BNBUSD",
+    "GOOG.US"
+  ]
+}

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 430" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <!-- Colores elegidos para verse bien en tema claro y oscuro de GitHub (fondo transparente) -->
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#8b949e"/>
+    </marker>
+    <marker id="flechaVerde" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#3fb950"/>
+    </marker>
+  </defs>
+
+  <!-- Trailing stop, arriba de R2 -->
+  <line x1="330" y1="96" x2="330" y2="52" stroke="#3fb950" stroke-width="2" marker-end="url(#flechaVerde)"/>
+  <text x="344" y="62" font-size="13.5" fill="#3fb950">superado R2, el stop avanza de a 1R (trailing):</text>
+  <text x="344" y="80" font-size="13.5" fill="#3fb950">la operación ya no puede perder</text>
+
+  <!-- Niveles -->
+  <!-- R2 -->
+  <line x1="120" y1="110" x2="520" y2="110" stroke="#3fb950" stroke-width="2" stroke-dasharray="7 6"/>
+  <text x="30" y="115" font-size="17" font-weight="600" fill="#3fb950">R2</text>
+  <text x="62" y="115" font-size="12.5" fill="#8b949e">objetivo</text>
+  <text x="534" y="107" font-size="13.5" fill="#3fb950">cierra 25%</text>
+  <text x="534" y="124" font-size="12.5" fill="#8b949e">stop sube a R1</text>
+
+  <!-- R1 -->
+  <line x1="120" y1="195" x2="520" y2="195" stroke="#3fb950" stroke-width="2" stroke-dasharray="7 6"/>
+  <text x="30" y="200" font-size="17" font-weight="600" fill="#3fb950">R1</text>
+  <text x="62" y="200" font-size="12.5" fill="#8b949e">mitad</text>
+  <text x="534" y="192" font-size="13.5" fill="#3fb950">cierra 50%</text>
+  <text x="534" y="209" font-size="12.5" fill="#8b949e">stop sube a breakeven</text>
+
+  <!-- R0 -->
+  <line x1="120" y1="280" x2="520" y2="280" stroke="#8b949e" stroke-width="2"/>
+  <text x="30" y="285" font-size="17" font-weight="600" fill="#8b949e">R0</text>
+  <text x="62" y="285" font-size="12.5" fill="#8b949e">entrada</text>
+  <text x="534" y="277" font-size="13.5" fill="#8b949e">entra a mercado</text>
+  <text x="534" y="294" font-size="12.5" fill="#8b949e">riesgo definido en USD</text>
+
+  <!-- R-1 -->
+  <line x1="120" y1="365" x2="520" y2="365" stroke="#f85149" stroke-width="2" stroke-dasharray="7 6"/>
+  <text x="24" y="370" font-size="17" font-weight="600" fill="#f85149">R-1</text>
+  <text x="62" y="370" font-size="12.5" fill="#8b949e">stop</text>
+  <text x="534" y="362" font-size="13.5" fill="#f85149">stop loss</text>
+  <text x="534" y="379" font-size="12.5" fill="#8b949e">pérdida exacta: el riesgo definido</text>
+
+  <!-- Cota de 1R entre R0 y R-1 -->
+  <line x1="98" y1="288" x2="98" y2="357" stroke="#8b949e" stroke-width="1.5" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+  <text x="88" y="327" font-size="13" font-weight="600" fill="#8b949e" text-anchor="end">1R</text>
+
+  <!-- Recorrido de precio ilustrativo -->
+  <polyline points="130,280 165,312 205,258 240,292 285,232 320,262 365,172 400,205 455,108 478,130 502,92"
+            fill="none" stroke="#8b949e" stroke-width="2" opacity="0.45" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
