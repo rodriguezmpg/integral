@@ -6,7 +6,7 @@ Persigue dos objetivos a la vez: **automatizar la gestión de riesgo** de cada o
 
 Define el riesgo en dólares, no el tamaño de la posición. El sistema calcula la cantidad, coloca la entrada, deja el take profit y el stop loss puestos, mueve el stop a favor a medida que la posición avanza y registra cada evento en base de datos. Todo lo que a mano sería tedioso y propenso a error, hecho de forma consistente y en dos brokers con APIs completamente distintas. Y siempre de forma precavida: primero protege la posición y recién después registra, así la base refleja únicamente lo que de verdad ocurrió, nunca lo que se pretendía.
 
-> **Es el programa que actualmente uso para gestionar mis posiciones.**
+> **Lo desarrollé para gestionar mis propias posiciones.**
 > Tener este proceso automatizado agiliza toda la administración de las posiciones: los cálculos y la
 > gestión del riesgo los hace el sistema, y yo me concentro en la toma de decisiones.
 
