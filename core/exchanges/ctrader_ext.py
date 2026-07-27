@@ -48,15 +48,15 @@ class CTraderExchange:
         if self.demo:
             self.account_id = int(os.getenv("CTRADER_ACCOUNT_ID_DEMO"))
             seed_access  = os.getenv("CTRADER_ACCESS_TOKEN_DEMO")
-            seed_refresh = os.getenv("CTRADER_REFRESH_TOKEN_DEMO")
+            seed_refresh = None   # demo no usa refresh token: si el token demo se vence, se pega uno nuevo en el .env
         else:
             self.account_id = int(os.getenv("CTRADER_ACCOUNT_ID"))
             seed_access  = os.getenv("CTRADER_ACCESS_TOKEN")
             seed_refresh = os.getenv("CTRADER_REFRESH_TOKEN")
 
-        # Tokens: el access token vence a los 30 días; el refresh token lo renueva (y en cada renovación rota).
-        # Se guardan en un JSON aparte por modo (demo/live) porque el refresh token cambia cada vez y el .env es
-        # estático. Al arrancar se lee ese archivo si existe (tokens ya rotados); si no, se obtiene del .env.
+        # Tokens: el refresh automático es SOLO para la cuenta real. El refresh token rota en cada
+        # renovación y el .env es estático, así que el par vigente se guarda en un JSON aparte
+        # (nombrado por modo). Al arrancar se lee ese archivo si existe; si no, se siembra del .env.
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._token_file = os.path.join(project_root, f"ctrader_token_{'demo' if self.demo else 'live'}.json")
         self._last_auth_warning = 0    # timestamp del último aviso de "no autorizado" a la UI (throttle anti-spam)
@@ -221,7 +221,10 @@ class CTraderExchange:
                 if now - self._last_auth_warning > 60:
                     self._last_auth_warning = now
                     from core.utils import pending_warnings
-                    pending_warnings['ctrader'] = 'cTrader token inválido/no autorizado - renovando (ver /log)'
+                    # Sin refresh token (caso demo) no hay nada automático que hacer: hay que avisar que se renueva a mano.
+                    pending_warnings['ctrader'] = ('cTrader token inválido/no autorizado - renovando (ver /log)'
+                                                   if self.tokens.get("refresh_token") else
+                                                   'cTrader token inválido/no autorizado - pegá un token nuevo en el .env')
                 if self.tokens.get("refresh_token") and now - self._last_refresh_attempt > 300:
                     self._last_refresh_attempt = now
                     logger.info(f"[CTRADER][TOKEN] {code or 'token error'} -> attempting token refresh (reactive)")
@@ -913,12 +916,14 @@ class CTraderExchange:
 
     def start(self):
         """Inicia la conexión con cTrader. Llamar al arrancar la app."""
-        # Renueva el token si está por vencer ANTES de conectar, así la primera autenticación usa uno fresco.
-        try:
-            self._maybe_refresh()
-        except Exception as e:
-            logger.error(f"[CTRADER][TOKEN] Error refreshing token at startup: {e}")
-        threading.Thread(target=self._token_refresh_loop, daemon=True).start()  # chequeo diario en segundo plano
+        # El refresh automático corre solo en real; en demo no hay refresh token que canjear.
+        if not self.demo:
+            # Renueva el token si está por vencer ANTES de conectar, así la primera autenticación usa uno fresco.
+            try:
+                self._maybe_refresh()
+            except Exception as e:
+                logger.error(f"[CTRADER][TOKEN] Error refreshing token at startup: {e}")
+            threading.Thread(target=self._token_refresh_loop, daemon=True).start()  # chequeo diario en segundo plano
         self.client.startService()
         reactor.run(installSignalHandlers=False) #installSignalHandlers=False requerido al correr el reactor fuera del main thread
 

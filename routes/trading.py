@@ -123,7 +123,15 @@ def start_trading():
 
     container.ps.risk_usdt    = risk_val
     container.ps.target_price = target_val
-    container.ps.comment      = request.values.get('comment', '')   
+    # En 2:1 el modal manda tp1 y r_1 vacíos (los deriva la lógica): _parse_pos devuelve None y quedan en 0.
+    container.ps.tp1          = _parse_pos(request.values.get('tp1')) or 0.0
+    container.ps.r_1          = _parse_pos(request.values.get('r_1')) or 0.0
+    # Los checkboxes llegan como TEXTO ("true"/"false", en minúscula porque los manda JS);
+    # la comparación es la que produce el True/False de Python que se guarda.
+    container.ps.check_2_1        = request.values.get('check_2_1') == 'true'
+    container.ps.check_BE_R0      = request.values.get('check_BE_R0') == 'true'
+    container.ps.check_BE_percR_1 = request.values.get('check_BE_percR_1') == 'true'
+    container.ps.comment      = request.values.get('comment', '')
     container.ps.socket_active = True
 
     if ticker in [s.lower() for s in forex_list]: 

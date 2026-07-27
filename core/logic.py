@@ -33,36 +33,50 @@ async def open_position(symbol, ps, fd, rt):
     if row and row[0]: fd.id_pos = int(row[0]) + 1
     else: fd.id_pos = 1
     
-    fd.perc2r = round(abs(ps.target_price - fd.r0) / fd.r0 * 100,4)
-    fd.perc1r = round((fd.perc2r / 2),4)
-    fd.perc1_r = round(-fd.perc1r,4)
+    
 
     fd.validation_message = 'Accepted'
     rt.breakeven_stage = -1
     rt.ALGO_pos = 'R0'
-    
-    if fd.r0 < ps.target_price:
-        fd.type_pos = 'LONG'
-        fd.r_1 = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)
-        fd.r1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)
-        fd.r2 = round(fd.r0 * (1 + (fd.perc2r / 100)), fd.price_decimals)
-        fd.dist_1r = fd.r0 - fd.r_1
-        rt.r_ts = round(fd.r2 + fd.dist_1r, fd.price_decimals)   
-        side_open = 'BUY'
-        fd.side_close = 'SELL'
-    else:
-        fd.type_pos = 'SHORT'
-        fd.r_1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)      
-        fd.r1  = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)     
-        fd.r2  = round(fd.r0 * (1 - (fd.perc2r / 100)), fd.price_decimals)
-        fd.dist_1r = fd.r_1 - fd.r0
-        rt.r_ts = round(fd.r2 - fd.dist_1r, fd.price_decimals)
-        side_open = 'SELL'
-        fd.side_close = 'BUY'
 
-    
 
-    fd.Qty_mVar = round(ps.risk_usdt / abs(fd.r0 - fd.r_1), fd.dec_qty)
+
+    if ps.check_2_1:
+        fd.perc2r = round(abs(ps.target_price - fd.r0) / fd.r0 * 100,4)
+        fd.perc1r = round((fd.perc2r / 2),4)
+        fd.perc1_r = round(-fd.perc1r,4)
+        if fd.r0 < ps.target_price:
+            fd.type_pos = 'LONG'
+            fd.r_1 = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)
+            fd.r1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)
+            fd.r2 = round(ps.target_price, fd.price_decimals) 
+            side_open = 'BUY'
+            fd.side_close = 'SELL'
+        else:
+            fd.type_pos = 'SHORT'
+            fd.r_1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)      
+            fd.r1  = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)     
+            fd.r2  = round(ps.target_price, fd.price_decimals)
+            side_open = 'SELL'
+            fd.side_close = 'BUY'
+    elif ps.check_BE_R0 or ps.check_BE_percR_1:
+        fd.r_1 = round(ps.r_1, fd.price_decimals)
+        fd.r1 = round(ps.tp1, fd.price_decimals)
+        fd.r2 = round(ps.target_price, fd.price_decimals)
+        fd.perc2r = round(abs(ps.target_price - fd.r0) / fd.r0 * 100,4)
+        fd.perc1r = round((fd.perc2r / 2),4)
+        fd.perc1_r = round(-fd.perc1r,4)
+        if fd.r0 < ps.target_price:
+            fd.type_pos = 'LONG'
+            side_open = 'BUY'
+            fd.side_close = 'SELL'
+        else:
+            fd.type_pos = 'SHORT' 
+            side_open = 'SELL'
+            fd.side_close = 'BUY'
+        
+
+    fd.Qty_mVar = round(ps.risk_usdt / abs(fd.r0 - fd.r_1), fd.dec_qty) #igual en ambos casos
     
 
     if ((fd.Qty_mVar / 4) < fd.Qty_min):
@@ -114,20 +128,17 @@ async def open_position(symbol, ps, fd, rt):
 
             rt.commission = Fee
 
-            if fd.r0 < ps.target_price: #long
-                slippage = PE_order - fd.r0   # diferencia entre el precio pedido y el fill real
-                fd.r_1 = round(fd.r_1 + slippage, fd.price_decimals)
-                fd.r1 = round(fd.r1 + slippage, fd.price_decimals)
-                fd.r2 = round(fd.r2 + slippage, fd.price_decimals)
-            else: #short
-                slippage = fd.r0 - PE_order
-                fd.r_1 = round(fd.r_1 - slippage, fd.price_decimals)
-                fd.r1  = round(fd.r1 - slippage, fd.price_decimals)
-                fd.r2  = round(fd.r2 - slippage, fd.price_decimals)
-
             rt.r_1 = fd.r_1
 
             fd.r0 = round(PE_order, fd.price_decimals)
+
+            #aca ya calcula las distancias con el spplitagge aplicado
+            fd.dist_1r = round(abs(fd.r0 - fd.r_1), fd.price_decimals)
+            fd.mid_dist = fd.dist_1r if ps.check_2_1 else round(abs(fd.r0 - fd.r2) / 2, fd.price_decimals)
+            if fd.type_pos == 'LONG':
+                rt.r_ts = round(fd.r2 + fd.mid_dist, fd.price_decimals)
+            else:
+                rt.r_ts = round(fd.r2 - fd.mid_dist, fd.price_decimals)
 
             fd.Qty_r1 = round((fd.Qty_mVar / 2), fd.dec_qty)
             fd.Qty_r2 = round((fd.Qty_mVar / 4), fd.dec_qty)
@@ -198,11 +209,17 @@ async def open_position(symbol, ps, fd, rt):
 async def handle_take_profit(symbol, ps, fd, rt):
     """Mueve el SL a favor cuando se llena un TP: al tocar R1 el SL sube a breakeven (r0), al tocar
     R2 sube a R1. Cancela el SL viejo, coloca el nuevo, sube breakeven_stage y registra el evento."""
+    
     if rt.r1_active:
         logger.info(f"[BINANCE][{symbol.upper()}][R1] Active")
         rt.ALGO_pos = 'R1'
         binance.cancel_algo_order(symbol, rt.id_order_r_1)
-        rt.r_1 = fd.r0
+        if ps.check_BE_percR_1 and (abs(fd.r0 - fd.r_1) > abs(fd.r0 - fd.r1)):
+            #Va a un punto donde el resultado da cero absorviendo la ganancia, 
+            #o si TP1 esta mas lejor del precio de entrada que SL va a BE0
+            rt.r_1 = round(2 * fd.r0 - rt.ALGO_PE, fd.price_decimals) 
+        else:
+            rt.r_1 = fd.r0
         rt.id_order_r_1 = await binance.order_sl_stop_market(symbol, fd.side_close, rt.r_1)
         rt.breakeven_stage += 1   # -1 -> 0: SL en breakeven
         rt.r1_active = False
@@ -210,8 +227,9 @@ async def handle_take_profit(symbol, ps, fd, rt):
     elif rt.r2_active:  
         logger.info(f"[BINANCE][{symbol.upper()}][R2] Active")
         rt.ALGO_pos = 'R2'
-        binance.cancel_algo_order(symbol, rt.id_order_r_1)  
-        rt.r_1 = fd.r1    
+        binance.cancel_algo_order(symbol, rt.id_order_r_1)
+        if fd.type_pos == 'SHORT': rt.r_1 = round(fd.r0 - fd.mid_dist, fd.price_decimals) 
+        elif fd.type_pos == 'LONG': rt.r_1 = round( fd.r0 + fd.mid_dist, fd.price_decimals) 
         rt.id_order_r_1 = await binance.order_sl_stop_market(symbol, fd.side_close, rt.r_1)
         rt.breakeven_stage += 1   # 0 -> 1: SL en R1
         rt.r2_active = False
@@ -248,19 +266,21 @@ async def advance_trailing_stop(symbol, ps, fd, rt):
     # Niveles nuevos en variables locales, SIN mutar el estado todavía: si la colocación de la SL
     # nueva falla, rt.r_ts queda como estaba y el próximo tick (precio sigue pasado de r_ts) reintenta solo.
     if fd.type_pos == 'LONG':
-        new_r_1  = round(rt.r_ts - fd.dist_1r, fd.price_decimals)
-        new_r_ts = rt.r_ts + round(fd.dist_1r, fd.price_decimals)
+        new_r_1  = round(rt.r_ts - fd.mid_dist, fd.price_decimals)
+        new_r_ts = rt.r_ts + round(fd.mid_dist, fd.price_decimals)
 
     elif fd.type_pos == 'SHORT':
-        new_r_1  = round(rt.r_ts + fd.dist_1r, fd.price_decimals)
-        new_r_ts = rt.r_ts - round(fd.dist_1r, fd.price_decimals)
+        new_r_1  = round(rt.r_ts + fd.mid_dist, fd.price_decimals)
+        new_r_ts = rt.r_ts - round(fd.mid_dist, fd.price_decimals)
 
     # PRIMERO colocar la SL nueva y recién DESPUÉS cancelar la vieja: si la colocación falla
     # (OrderError -> la atrapa el socket y el tick sigue), la SL vieja sigue viva en el broker y
     # la posición nunca queda sin stop. 
     old_sl_id = rt.id_order_r_1
-    rt.id_order_r_1 = await binance.order_sl_stop_market(symbol, fd.side_close, new_r_1)
     binance.cancel_algo_order(symbol, old_sl_id)
+
+    rt.id_order_r_1 = await binance.order_sl_stop_market(symbol, fd.side_close, new_r_1)
+    
 
     rt.r_1 = new_r_1
     rt.r_ts = new_r_ts

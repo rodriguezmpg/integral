@@ -8,11 +8,18 @@ class DataPost:
     """Inputs del usuario en el cuadro de apertura."""
     def reset(self):
         self.__init__()
-    def __init__(self):
-        self.target_price = 0.00
+    def __init__(self):        
         self.risk_usdt = 0
         self.socket_active = False
         self.comment = ''   # nota opcional; va a trade_history al cerrar
+
+        self.target_price = 0.00
+        self.tp1 = 0.00
+        self.r_1 = 0.00
+        self.check_2_1 = False
+        self.check_BE_R0 = False
+        self.check_BE_percR_1 = False
+    
 
     def to_dict(self):
         return {
@@ -54,6 +61,7 @@ class FixedData:
         self.r2 = 0.00
        
         self.dist_1r = 0.00
+        self.mid_dist = 0.00
 
         self.Qty_r1 = 0.00
         self.Qty_r2 = 0.00

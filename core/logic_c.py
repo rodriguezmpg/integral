@@ -41,32 +41,43 @@ def open_position_phase1(symbol, ps, fd, rt):
     if row and row[0]: fd.id_pos = int(row[0]) + 1
     else: fd.id_pos = 1
     
-    fd.perc2r = round(abs(ps.target_price - fd.r0) / fd.r0 * 100,4)
-    fd.perc1r = round((fd.perc2r / 2),4)
-    fd.perc1_r = round(-fd.perc1r,4)
-
     fd.validation_message = 'Accepted'
     rt.breakeven_stage = -1
     rt.ALGO_pos = 'R0'
-    
-    if fd.r0 < ps.target_price:
-        fd.type_pos = 'LONG'
-        fd.r_1 = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)
-        fd.r1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)
-        fd.r2 = round(fd.r0 * (1 + (fd.perc2r / 100)), fd.price_decimals)
-        fd.dist_1r = fd.r0 - fd.r_1
-        rt.r_ts = round(fd.r2 + fd.dist_1r, fd.price_decimals)   
-        side_open = 'BUY'
-        fd.side_close = 'SELL'
-    else:
-        fd.type_pos = 'SHORT'
-        fd.r_1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)      
-        fd.r1  = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)     
-        fd.r2  = round(fd.r0 * (1 - (fd.perc2r / 100)), fd.price_decimals)
-        fd.dist_1r = fd.r_1 - fd.r0
-        rt.r_ts = round(fd.r2 - fd.dist_1r, fd.price_decimals)
-        side_open = 'SELL'
-        fd.side_close = 'BUY'
+
+    if ps.check_2_1:
+        fd.perc2r = round(abs(ps.target_price - fd.r0) / fd.r0 * 100,4)
+        fd.perc1r = round((fd.perc2r / 2),4)
+        fd.perc1_r = round(-fd.perc1r,4)
+        if fd.r0 < ps.target_price:
+            fd.type_pos = 'LONG'
+            fd.r_1 = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)
+            fd.r1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)
+            fd.r2 = round(ps.target_price, fd.price_decimals)
+            side_open = 'BUY'
+            fd.side_close = 'SELL'
+        else:
+            fd.type_pos = 'SHORT'
+            fd.r_1 = round(fd.r0 * (1 + (fd.perc1r / 100)), fd.price_decimals)
+            fd.r1  = round(fd.r0 * (1 - (fd.perc1r / 100)), fd.price_decimals)
+            fd.r2  = round(ps.target_price, fd.price_decimals)
+            side_open = 'SELL'
+            fd.side_close = 'BUY'
+    elif ps.check_BE_R0 or ps.check_BE_percR_1:
+        fd.r_1 = round(ps.r_1, fd.price_decimals)
+        fd.r1 = round(ps.tp1, fd.price_decimals)
+        fd.r2 = round(ps.target_price, fd.price_decimals)
+        fd.perc2r = round(abs(ps.target_price - fd.r0) / fd.r0 * 100,4)
+        fd.perc1r = round((fd.perc2r / 2),4)
+        fd.perc1_r = round(-fd.perc1r,4)
+        if fd.r0 < ps.target_price:
+            fd.type_pos = 'LONG'
+            side_open = 'BUY'
+            fd.side_close = 'SELL'
+        else:
+            fd.type_pos = 'SHORT'
+            side_open = 'SELL'
+            fd.side_close = 'BUY'
 
     fd.Qty_mVar = ctrader.calculate_lots(symbol, ps.risk_usdt, abs(fd.r0 - fd.r_1))
 
@@ -96,8 +107,8 @@ def open_position_phase1(symbol, ps, fd, rt):
 
     # Spread de apertura - Fail-open si falta un lado del spread (queda perc_spread=0).
     spread = ctrader.spread(symbol)
-    if spread is not None and fd.dist_1r > 0:
-        fd.perc_spread = round(spread / fd.dist_1r * 100, 2)
+    if spread is not None and abs(fd.r0 - fd.r_1) > 0:
+        fd.perc_spread = round(spread / abs(fd.r0 - fd.r_1) * 100, 2)
         if fd.perc_spread > 25:
             fd.control = False
             pending_warnings[symbol] = f'Open blocked for {symbol}: spread {fd.perc_spread:.0f}% of 1R (too wide — rollover/news?)'
@@ -109,18 +120,22 @@ def open_position_phase1(symbol, ps, fd, rt):
     ctrader.order_market(symbol, side_open, fd.Qty_mVar)
 
 def open_position_phase2(symbol, ps, fd, rt, PE_order, id_order):
-    """Segunda fase, disparada al llegar el fill: corre los niveles R al precio de entrada real
-    (shift), calcula cantidades y P&L por nivel, coloca los TP (R1/R2) y el SL, y registra R0.
+    """Segunda fase, disparada al llegar el fill: fija el precio de entrada real, calcula las
+    distancias, las cantidades y el P&L por nivel, coloca los TP (R1/R2) y el SL, y registra R0.
+    Los niveles NO se mueven con el fill: son los que eligió el usuario (o los que armó phase1).
     Proteger primero, registrar después: los TP/SL van antes de escribir en la DB."""
 
-    shift = PE_order - fd.r0
-    fd.r_1 = round(fd.r_1 + shift, fd.price_decimals)
-    fd.r1  = round(fd.r1  + shift, fd.price_decimals)
-    fd.r2  = round(fd.r2  + shift, fd.price_decimals)
-
-    rt.r_1 = fd.r_1 
+    rt.r_1 = fd.r_1
 
     fd.r0 = round(PE_order, fd.price_decimals)
+
+    #aca ya calcula las distancias con el spplitagge aplicado
+    fd.dist_1r = round(abs(fd.r0 - fd.r_1), fd.price_decimals)
+    fd.mid_dist = fd.dist_1r if ps.check_2_1 else round(abs(fd.r0 - fd.r2) / 2, fd.price_decimals)
+    if fd.type_pos == 'LONG':
+        rt.r_ts = round(fd.r2 + fd.mid_dist, fd.price_decimals)
+    else:
+        rt.r_ts = round(fd.r2 - fd.mid_dist, fd.price_decimals)
 
     n1 = int((fd.Qty_mVar / 2) / fd.steps_Qty_var + 1e-9)   # el 1e-9 corrige los 0.0199999999 pasándolo a 0.02
     n2 = int((fd.Qty_mVar / 4) / fd.steps_Qty_var + 1e-9)   # steps enteros en el cuarto
@@ -172,19 +187,27 @@ def open_position_phase2(symbol, ps, fd, rt, PE_order, id_order):
 
 def handle_take_profit(symbol, ps, fd, rt, price, cpd, order_id, pnl, qty_closed):
     """Mueve el SL a favor cuando se llena un TP (lo dispara el evento de ejecución de cTrader):
-    al tocar R1 el SL sube a breakeven (r0), al tocar R2 sube a R1. El pnl viene servido por el broker."""
+    al tocar R1 el SL va a breakeven (o al nivel de resultado cero si el setup es BE = %R_1) y al
+    tocar R2 va a mid_dist de la entrada. El pnl y el precio de fill vienen servidos por el broker.
+    A diferencia de Binance no hay que cancelar nada: set_position_sl modifica el SL de la posición."""
     if rt.r1_active:
         logger.info(f"[CTRADER][{symbol.upper()}][R1] Active")
         rt.ALGO_pos = 'R1'
-        rt.r_1 = fd.r0
+        if ps.check_BE_percR_1 and (abs(fd.r0 - fd.r_1) > abs(fd.r0 - fd.r1)):
+            #Va a un punto donde el resultado da cero absorviendo la ganancia,
+            #o si TP1 esta mas lejor del precio de entrada que SL va a BE0
+            rt.r_1 = round(2 * fd.r0 - price, fd.price_decimals)
+        else:
+            rt.r_1 = fd.r0
         ctrader.set_position_sl(symbol, fd.id_order, rt.r_1)
         rt.breakeven_stage += 1   # -1 -> 0: SL en breakeven
         rt.r1_active = False
         rt.Qty_r1 = 0
-    elif rt.r2_active:  
+    elif rt.r2_active:
         logger.info(f"[CTRADER][{symbol.upper()}][R2] Active")
-        rt.ALGO_pos = 'R2'  
-        rt.r_1 = fd.r1    
+        rt.ALGO_pos = 'R2'
+        if fd.type_pos == 'SHORT': rt.r_1 = round(fd.r0 - fd.mid_dist, fd.price_decimals)
+        elif fd.type_pos == 'LONG': rt.r_1 = round( fd.r0 + fd.mid_dist, fd.price_decimals)
         ctrader.set_position_sl(symbol, fd.id_order, rt.r_1)
         rt.breakeven_stage += 1   # 0 -> 1: SL en R1
         rt.r2_active = False
@@ -217,15 +240,17 @@ def handle_take_profit(symbol, ps, fd, rt, price, cpd, order_id, pnl, qty_closed
         pending_warnings[symbol] = f'DB error registering {symbol} {rt.ALGO_pos}'
 
 def advance_trailing_stop(symbol, ps, fd, rt):
-    """Trailing stop: cuando el precio alcanza r_ts, adelanta el SL una distancia de 1R (dist_1r)."""
+    """Trailing stop: cuando el precio alcanza r_ts, adelanta el SL una distancia mid_dist (1R en el
+    setup 2:1, la mitad del camino a R2 en los manuales). No hace falta el patrón de Binance de armar
+    los niveles en variables locales: acá set_position_sl modifica el SL de la posición y no falla."""
 
     if fd.type_pos == 'LONG':
-        rt.r_1 = round(rt.r_ts - fd.dist_1r, fd.price_decimals)
-        rt.r_ts += round(fd.dist_1r, fd.price_decimals)
+        rt.r_1 = round(rt.r_ts - fd.mid_dist, fd.price_decimals)
+        rt.r_ts += round(fd.mid_dist, fd.price_decimals)
 
     elif fd.type_pos == 'SHORT':
-        rt.r_1 = round(rt.r_ts + fd.dist_1r, fd.price_decimals)
-        rt.r_ts -= round(fd.dist_1r, fd.price_decimals)
+        rt.r_1 = round(rt.r_ts + fd.mid_dist, fd.price_decimals)
+        rt.r_ts -= round(fd.mid_dist, fd.price_decimals)
 
     rt.breakeven_stage += 1
     rt.ALGO_pos = 'TS'
@@ -361,7 +386,10 @@ def metrics(symbol, ps, fd, rt):
 def manage_position(ps, fd, rt, symbol):
     """Se llama en cada tick de precio. A diferencia de Binance, acá solo maneja el avance del
     trailing y refresca las métricas: los TP y el cierre los disparan los eventos de ejecución."""
-    if fd.control:
+    # fd.id_order recién existe cuando llega el fill y corre phase2. Entre la orden a mercado y ese
+    # evento siguen entrando ticks, y ahí r_ts todavía vale 0: sin este filtro, un LONG cumpliría
+    # current_price >= 0 y dispararía el trailing sobre una posición que ni siquiera existe.
+    if fd.control and fd.id_order:
         if fd.type_pos == 'LONG':
             if rt.current_price >= rt.r_ts:
                 advance_trailing_stop(symbol, ps, fd, rt)

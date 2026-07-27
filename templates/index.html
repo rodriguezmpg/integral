@@ -558,8 +558,9 @@
     <!-- ================================================================
          START POSITION MODAL
          ================================================================ -->
-    <div id="modal-start-overlay" class="modal-overlay" style="display:none"
-         onclick="if(event.target===this) cerrarModalStart()">
+    <!-- A diferencia del modal de Add, este NO se cierra con click afuera ni con Escape: solo con la ✕.
+         Tiene datos tipeados a mano (riesgo y niveles) y un cierre accidental los perdía. -->
+    <div id="modal-start-overlay" class="modal-overlay" style="display:none">
         <div class="modal-card">
             <div class="modal-header">
                 <span id="start-modal-title">Start Position</span>
@@ -571,6 +572,31 @@
             <label class="modal-field-label">Target Price
                 <input type="text" id="start-target" class="search-input" style="width:100%" placeholder="0.00" autocomplete="off">
             </label>
+
+            <!-- Setup: los tres son EXCLUYENTES (un modo por trade) y arrancan sin marcar, así que el
+                 botón Start queda deshabilitado hasta elegir uno. "2:1" deriva TP1 y SL del target
+                 (comportamiento histórico); los otros dos los toman de los campos de abajo y se
+                 diferencian solo en a dónde va el SL cuando el precio toca TP1. -->
+            <div class="modal-field-label">Setup</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 10px 0;font-size:0.9rem">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                    <input type="checkbox" id="start-check-2-1" onchange="seleccionarModo(this)"> 2:1
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                    <input type="checkbox" id="start-check-be-r0" onchange="seleccionarModo(this)"> BE = R0
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                    <input type="checkbox" id="start-check-be-perc" onchange="seleccionarModo(this)"> BE = %R_1
+                </label>
+            </div>
+
+            <label class="modal-field-label" id="start-tp1-label">TP1
+                <input type="text" id="start-tp1" class="search-input" style="width:100%" placeholder="0.00" autocomplete="off">
+            </label>
+            <label class="modal-field-label" id="start-sl-label">Stop Loss
+                <input type="text" id="start-sl" class="search-input" style="width:100%" placeholder="0.00" autocomplete="off">
+            </label>
+            <div id="start-niveles-info" style="display:none;font-size:0.82rem;margin:-4px 0 8px 0;color:#d13438"></div>
             <div id="start-spread-info" style="display:none;font-size:0.82rem;margin:-4px 0 8px 0"></div>
             <label class="modal-field-label">Comment (optional)
                 <textarea id="start-comment" class="search-input" style="width:100%;resize:vertical;min-height:52px" placeholder="Nota de la posición..." autocomplete="off"></textarea>
@@ -584,21 +610,55 @@
         let tickerParaStart = null;
         let spreadActual = null, precioRef = null, digitsRef = 5;   // estado del spread del símbolo abierto en el modal
 
-        // Recalcula el % del spread contra 1R con el target tipeado, SIN volver a pedir nada al server.
-        // dist_1r = |target - precioRef| / 2  (deriva de perc1r en logic_c). Verde <5%, amarillo 5-12%, rojo >12%.
+        const numCampo = id => Number(document.getElementById(id).value.replace(',', '.').trim());
+        // ¿El modo elegido usa los niveles cargados a mano? (los dos "BE = ..."; 2:1 los deriva)
+        const modoManual = () => document.getElementById('start-check-be-r0').checked ||
+                                 document.getElementById('start-check-be-perc').checked;
+
+        // Los tres checkboxes son modos EXCLUYENTES: marcar uno desmarca los otros. Se pueden
+        // dejar los tres sin marcar, y en ese caso el botón Start queda deshabilitado.
+        function seleccionarModo(elegido) {
+            ['start-check-2-1', 'start-check-be-r0', 'start-check-be-perc'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el !== elegido) el.checked = false;
+            });
+            aplicarModo();
+        }
+
+        // Habilita/deshabilita TP1 y Stop Loss según el modo. En 2:1 se derivan del target, así que
+        // además de deshabilitarlos se limpian: si no, un valor tipeado antes viajaría al server.
+        function aplicarModo() {
+            const manual = modoManual();
+            [['start-tp1', 'start-tp1-label'], ['start-sl', 'start-sl-label']].forEach(([inp, lbl]) => {
+                const el = document.getElementById(inp);
+                el.disabled = !manual;
+                if (!manual) el.value = '';
+                document.getElementById(lbl).style.opacity = manual ? '1' : '0.45';
+            });
+            validarStart();
+            actualizarSpreadPct();
+        }
+
+        // Recalcula el % del spread contra 1R con lo tipeado, SIN volver a pedir nada al server.
+        // 1R depende del modo: en 2:1 es la mitad de la distancia al target; en los modos manuales
+        // es la distancia al Stop Loss cargado. Verde <5%, amarillo 5-12%, rojo >12%.
         function actualizarSpreadPct() {
             const el = document.getElementById('start-spread-info');
             if (spreadActual == null || precioRef == null) { el.style.display = 'none'; return; }
             let txt = `Spread: ${spreadActual.toFixed(digitsRef)}`;
             let color = '#888';
-            const target = Number(document.getElementById('start-target').value.replace(',', '.').trim());
-            if (target > 0) {
-                const dist1r = Math.abs(target - precioRef) / 2;
-                if (dist1r > 0) {
-                    const pct = spreadActual / dist1r * 100;
-                    txt += `  ·  ${pct.toFixed(1)}% de 1R`;
-                    color = pct < 5 ? '#2e9e5b' : (pct <= 12 ? '#c79100' : '#d13438');
-                }
+            let dist1r = 0;
+            if (modoManual()) {
+                const sl = numCampo('start-sl');
+                if (sl > 0) dist1r = Math.abs(precioRef - sl);
+            } else {
+                const target = numCampo('start-target');
+                if (target > 0) dist1r = Math.abs(target - precioRef) / 2;
+            }
+            if (dist1r > 0) {
+                const pct = spreadActual / dist1r * 100;
+                txt += `  ·  ${pct.toFixed(1)}% de 1R`;
+                color = pct < 5 ? '#2e9e5b' : (pct <= 12 ? '#c79100' : '#d13438');
             }
             el.textContent = txt;
             el.style.color = color;
@@ -609,9 +669,32 @@
             // Number() da NaN ante letras/caracteres inválidos ("XZC" -> NaN) y 0 ante
             // vacío; con "> 0" ambos casos dejan el botón deshabilitado. El servidor
             // igual revalida (defensa en profundidad).
-            const risk   = Number(document.getElementById('start-risk').value.replace(',', '.').trim());
-            const target = Number(document.getElementById('start-target').value.replace(',', '.').trim());
-            document.getElementById('btn-start-confirm').disabled = !(risk > 0 && target > 0);
+            const risk   = numCampo('start-risk');
+            const target = numCampo('start-target');
+            const manual = modoManual();
+            const hayModo = document.getElementById('start-check-2-1').checked || manual;
+
+            // En los modos manuales TP1 y SL son obligatorios; en 2:1 ni se miran (van vacíos).
+            let nivelesOk = true, aviso = '';
+            if (manual) {
+                const tp1 = numCampo('start-tp1'), sl = numCampo('start-sl');
+                nivelesOk = tp1 > 0 && sl > 0;
+                // TP1 tiene que quedar ENTRE el Stop Loss y el Target. Con el rango alcanza para las dos
+                // direcciones sin saber cuál es: LONG da sl < tp1 < target y SHORT da target < tp1 < sl.
+                // Es todo lo chequeable acá: que el SL esté del lado perdedor depende de R0, que recién
+                // se conoce al abrir la posición.
+                if (nivelesOk && target > 0 &&
+                    !(tp1 > Math.min(sl, target) && tp1 < Math.max(sl, target))) {
+                    nivelesOk = false;
+                    aviso = 'TP1 tiene que estar entre el Stop Loss y el Target Price';
+                }
+            }
+            const elAviso = document.getElementById('start-niveles-info');
+            elAviso.textContent = aviso;
+            elAviso.style.display = aviso ? 'block' : 'none';
+
+            document.getElementById('btn-start-confirm').disabled =
+                !(risk > 0 && target > 0 && hayModo && nivelesOk);
         }
 
         function abrirModalStart(ticker) {
@@ -620,8 +703,13 @@
                 ticker.endsWith('usdt') ? ticker.replace('usdt', '').toUpperCase() : ticker.toUpperCase();
             document.getElementById('start-risk').value   = '';
             document.getElementById('start-target').value = '';
+            document.getElementById('start-tp1').value    = '';
+            document.getElementById('start-sl').value     = '';
             document.getElementById('start-comment').value = '';
-            document.getElementById('btn-start-confirm').disabled = true;
+            // Los tres modos arrancan sin marcar en cada apertura: obliga a elegirlo a propósito.
+            ['start-check-2-1', 'start-check-be-r0', 'start-check-be-perc'].forEach(id =>
+                document.getElementById(id).checked = false);
+            aplicarModo();   // deja TP1/SL deshabilitados y el botón Start en disabled
             document.getElementById('modal-start-overlay').style.display = 'flex';
             // Spread del símbolo (solo cTrader/forex-CFD; crypto responde n/a y la línea queda oculta).
             // Foto única al abrir: el % se recalcula solo contra el target mientras tipeás.
@@ -668,14 +756,26 @@
             if (!tickerParaStart) return;
             // Respetamos la validación: Enter dispara esto salteando el botón disabled.
             if (document.getElementById('btn-start-confirm').disabled) return;
-            const risk    = document.getElementById('start-risk').value.replace(',', '.');
-            const target  = document.getElementById('start-target').value.replace(',', '.');
-            const comment = document.getElementById('start-comment').value;   // opcional; puede ir vacío
-            fetch(`/mainstart?ticker=${tickerParaStart}&risk_usdt=${risk}&target_price=${target}&comment=${encodeURIComponent(comment)}`, { method: 'POST' })
+            const val = id => document.getElementById(id).value.replace(',', '.');
+            const chk = id => document.getElementById(id).checked;
+            // URLSearchParams codifica todo (el comentario puede traer & o #). En 2:1, tp1 y r_1
+            // viajan vacíos y el server los ignora.
+            const params = new URLSearchParams({
+                ticker:           tickerParaStart,
+                risk_usdt:        val('start-risk'),
+                target_price:     val('start-target'),
+                tp1:              val('start-tp1'),
+                r_1:              val('start-sl'),
+                check_2_1:        chk('start-check-2-1'),
+                check_BE_R0:      chk('start-check-be-r0'),
+                check_BE_percR_1: chk('start-check-be-perc'),
+                comment:          document.getElementById('start-comment').value,   // opcional; puede ir vacío
+            });
+            fetch(`/mainstart?${params}`, { method: 'POST' })
                 .then(r => { if (!r.ok) console.error(`[Start] Error starting ${tickerParaStart}`); });
             cerrarModalStart();
         }
-        ['start-risk', 'start-target'].forEach(id => {
+        ['start-risk', 'start-target', 'start-tp1', 'start-sl'].forEach(id => {
             const el = document.getElementById(id);
             el.addEventListener('input',   function() { this.value = this.value.replace(',', '.'); validarStart(); actualizarSpreadPct(); });
             el.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmarStart(); });
@@ -797,9 +897,9 @@
             .catch(() => alert('Connection error'));
         }
 
-        // Escape cierra cualquier modal abierto
+        // Escape cierra el modal de Add (no tiene nada que perder). El de Start queda afuera a propósito.
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') { cerrarModal(); cerrarModalStart(); }
+            if (e.key === 'Escape') { cerrarModal(); }
         });
     </script>
 
